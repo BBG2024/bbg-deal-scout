@@ -1,0 +1,39 @@
+# BBG Deal Scout — Fly.io Configuration
+# Region: yyz (Toronto, Canada) — Canadian data sovereignty
+# Deploy: fly deploy
+# Dashboard: https://bbg-deal-scout.fly.dev
+
+app = "bbg-deal-scout"
+primary_region = "yyz"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  BBG_DB_PATH = "/data/deal_scout.db"
+  PORT = "8050"
+
+# Secrets — set these with: fly secrets set BBG_BING_API_KEY=xxx
+# fly secrets set BBG_ADMIN_PASSWORD=your_strong_password
+# fly secrets set BBG_PRINCIPAL2_PASSWORD=your_strong_password
+# fly secrets set BBG_NOTIFY_RECIPIENTS=info@bluebeargroup.ca
+
+[http_service]
+  internal_port = 8050
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[mounts]]
+  source = "bbg_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

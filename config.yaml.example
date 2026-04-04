@@ -1,0 +1,164 @@
+# ============================================================
+# BBG Deal Scout — Configuration
+# Copy this file to config.yaml and fill in your credentials
+# ============================================================
+
+general:
+  app_name: "BBG Deal Scout"
+  run_hour: 12           # Hour (24h) to run daily scan
+  timezone: "America/Toronto"
+  log_level: "INFO"
+  database_path: "data/deal_scout.db"
+
+# --- Regions & Search Criteria ---
+regions:
+  greater_edmonton:
+    label: "Greater Edmonton"
+    search_queries:
+      - "multifamily apartment building for sale Edmonton"
+      - "multi-family investment property Edmonton Alberta"
+      - "apartment complex for sale Edmonton"
+      - "multi unit residential for sale Sherwood Park"
+      - "multifamily for sale St. Albert Alberta"
+      - "apartment building for sale Spruce Grove"
+      - "multi-family for sale Leduc Alberta"
+      - "apartment investment property Fort Saskatchewan"
+    rss_feeds: []
+    watch_urls:
+      - url: "https://www.realtor.ca/map#ZoomLevel=10&Center=53.544389%2C-113.490927&LatitudeMax=53.74&LongitudeMax=-113.10&LatitudeMin=53.35&LongitudeMin=-113.88&Sort=6-D&PGeoIds=g30_dpg6dr80&GeoName=Edmonton%2C%20AB&PropertyTypeGroupID=5&TransactionTypeId=2&BuildingTypeId=17&Currency=CAD"
+        label: "Realtor.ca Edmonton Multifamily"
+      - url: "https://www.loopnet.com/search/multifamily-properties/edmonton-ab/for-sale/"
+        label: "LoopNet Edmonton"
+
+  greater_montreal:
+    label: "Greater Montreal"
+    search_queries:
+      - "immeuble à revenus à vendre Montréal"
+      - "multi-logements à vendre Montréal"
+      - "multifamily apartment building for sale Montreal"
+      - "plex à vendre Laval Québec"
+      - "immeuble locatif à vendre Longueuil"
+      - "revenue property for sale Montreal West Island"
+      - "multi-family for sale Brossard Quebec"
+      - "apartment building for sale Terrebonne Quebec"
+    rss_feeds: []
+    watch_urls:
+      - url: "https://www.centris.ca/en/multi-family-properties~for-sale~montreal-island?view=Thumbnail"
+        label: "Centris Montreal Multifamily"
+      - url: "https://www.loopnet.com/search/multifamily-properties/montreal-qc/for-sale/"
+        label: "LoopNet Montreal"
+
+filters:
+  min_units: 5
+  max_units: 50
+  min_price: 500000       # CAD — floor to filter junk
+  max_price: 15000000     # CAD — ceiling for target check size
+  asset_types:
+    - "apartment"
+    - "multifamily"
+    - "multi-family"
+    - "multi-logements"
+    - "immeuble à revenus"
+    - "revenue property"
+    - "plex"
+
+# --- Tier 1 Scorecard Thresholds ---
+scoring:
+  min_cap_rate: 5.0
+  min_dscr: 1.20
+  min_occupancy: 85.0
+  target_geographies:
+    - "Edmonton"
+    - "St. Albert"
+    - "Sherwood Park"
+    - "Spruce Grove"
+    - "Leduc"
+    - "Fort Saskatchewan"
+    - "Beaumont"
+    - "Montreal"
+    - "Laval"
+    - "Longueuil"
+    - "Brossard"
+    - "Terrebonne"
+    - "West Island"
+
+# --- Bing Web Search API ---
+# Free tier: 1,000 calls/month
+# Sign up: https://portal.azure.com → Cognitive Services → Bing Search v7
+bing_search:
+  api_key: "YOUR_BING_API_KEY"
+  endpoint: "https://api.bing.microsoft.com/v7.0/search"
+  max_results_per_query: 10
+  daily_query_limit: 30   # Stay within free tier
+
+# --- Email Alert Parsing (IMAP) ---
+# Set up Realtor.ca and Centris.ca email alerts to this inbox
+email_parsing:
+  enabled: false
+  imap_server: "imap.gmail.com"
+  imap_port: 993
+  email_address: "bbg.dealalerts@gmail.com"
+  # Use an App Password for Gmail (not your real password)
+  email_password: "YOUR_APP_PASSWORD"
+  alert_senders:
+    - "noreply@realtor.ca"
+    - "noreply@centris.ca"
+    - "alerts@loopnet.com"
+
+# --- Notifications ---
+notifications:
+  email:
+    enabled: true
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    sender_email: "bbg.dealalerts@gmail.com"
+    sender_password: "YOUR_APP_PASSWORD"
+    recipients:
+      - "principal1@bluebeargroup.ca"
+      - "principal2@bluebeargroup.ca"
+    subject_prefix: "BBG Deal Scout"
+
+  slack:
+    enabled: false
+    webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    channel: "#deal-flow"
+
+# --- Dashboard ---
+dashboard:
+  host: "0.0.0.0"
+  port: 8050
+  # Simple auth for 2-3 team members
+  users:
+    admin: "changeme123"
+    principal2: "changeme456"
+
+# --- Folder Watch (Broker Inbox) ---
+# Drop PDFs, docs, or emails from brokers into this folder.
+# Deal Scout extracts listing data on each scan and moves files to /processed.
+folder_watch:
+  enabled: true
+  directory: "data/inbox"
+  processed_directory: "data/inbox/processed"
+
+# --- OneDrive Sync ---
+# Results are auto-synced to a shared OneDrive folder after each scan.
+# Team members with access to this folder get: daily CSV export, HTML report, database copy.
+# If sync_folder is not set, Deal Scout auto-detects your OneDrive path.
+onedrive:
+  enabled: true
+  # sync_folder: "C:/Users/YourName/OneDrive/BBG Deal Scout"   # Uncomment to set manually
+
+# --- Custom Watch URLs ---
+# Add any brokerage or listing page you want monitored for changes.
+# The system checks for new content daily and extracts listing-like patterns.
+custom_watch_urls:
+  - url: "https://www.marcusmillichap.com/properties?type=Multifamily&state=Alberta"
+    label: "M&M Alberta Multifamily"
+  - url: "https://www.naicommercial.ca/properties/for-sale/?property_type=multi-residential"
+    label: "NAI Commercial Multi-Res"
+  - url: "https://www.colliers.com/en-ca/properties?market=edmonton&propertyType=multifamily&transactionType=sale"
+    label: "Colliers Edmonton MF"
+  - url: "https://www.cbre.ca/properties?market=edmonton&type=multifamily&transaction=sale"
+    label: "CBRE Edmonton MF"
+  - url: "https://www.colliers.com/en-ca/properties?market=montreal&propertyType=multifamily&transactionType=sale"
+    label: "Colliers Montreal MF"

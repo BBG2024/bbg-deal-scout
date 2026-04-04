@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBG Deal Scout — Sources</title>
+    <style>
+        :root { --bbg-blue: #005AAA; --bbg-red: #D71920; --bg: #f5f7fa; --card: #fff; --border: #e2e8f0; --text: #2d3748; --muted: #718096; --green: #27ae60; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Calibri', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+        nav { background: var(--bbg-blue); color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+        nav h1 { font-size: 18px; }
+        nav .nav-links { display: flex; gap: 16px; }
+        nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; }
+        nav a:hover { color: white; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        h2 { font-size: 18px; margin-bottom: 16px; color: var(--bbg-blue); }
+        .card { background: var(--card); border-radius: 8px; border: 1px solid var(--border); padding: 20px; margin-bottom: 20px; }
+        .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-group input, .form-group select, .form-group textarea { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+        .form-group input { min-width: 250px; }
+        .form-group textarea { min-width: 250px; min-height: 40px; resize: vertical; }
+        button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+        .btn-primary { background: var(--bbg-blue); color: white; }
+        .btn-danger { background: var(--bbg-red); color: white; font-size: 11px; padding: 4px 10px; }
+        .btn-toggle { background: #eee; color: var(--text); font-size: 11px; padding: 4px 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8fafc; padding: 10px 8px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 2px solid var(--bbg-blue); }
+        td { padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .badge-url { background: #e3f2fd; color: var(--bbg-blue); }
+        .badge-rss { background: #fff3e0; color: #e67e22; }
+        .badge-email { background: #fce4ec; color: #c0392b; }
+        .badge-folder { background: #e8f5e9; color: var(--green); }
+        .badge-enabled { background: #e8f5e9; color: var(--green); }
+        .badge-disabled { background: #f3f4f6; color: var(--muted); }
+        .perf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+        .perf-card { background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid var(--border); }
+        .perf-card .num { font-size: 24px; font-weight: 700; color: var(--bbg-blue); }
+        .perf-card .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+        .url-cell { max-width: 350px; word-break: break-all; font-size: 12px; color: var(--muted); }
+        .actions-cell { white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <nav>
+        <h1>🏢 BBG Deal Scout</h1>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/sources" style="color:white;font-weight:600;">Sources</a>
+            <a href="/history">History</a>
+            <a href="/search">Search</a>
+            <a href="/logout">Sign Out</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>Manage Data Sources</h2>
+
+        <!-- Add Source Form -->
+        <div class="card">
+            <h3 style="font-size:14px;margin-bottom:12px;">Add New Source</h3>
+            <form method="post" action="/sources/add">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select name="source_type" required>
+                            <option value="watch_url">Watch URL (brokerage page)</option>
+                            <option value="rss_feed">RSS Feed</option>
+                            <option value="email_sender">Email Alert Sender</option>
+                            <option value="folder_path">Local Folder Path</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>URL / Email / Path</label>
+                        <input type="text" name="url" placeholder="https://broker-site.com/listings" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Label</label>
+                        <input type="text" name="label" placeholder="CBRE Edmonton Multifamily" required style="min-width:200px;">
+                    </div>
+                    <div class="form-group">
+                        <label>Region</label>
+                        <select name="region">
+                            <option value="all">Both Regions</option>
+                            <option value="greater_edmonton">Greater Edmonton</option>
+                            <option value="greater_montreal">Greater Montreal</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Notes (optional)</label>
+                        <input type="text" name="notes" placeholder="Check weekly, only commercial listings" style="min-width:400px;">
+                    </div>
+                    <button type="submit" class="btn-primary">Add Source</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Source Performance -->
+        {% if performance %}
+        <div class="card">
+            <h3 style="font-size:14px;margin-bottom:12px;">Source Performance</h3>
+            <div class="perf-grid">
+                {% for p in performance %}
+                <div class="perf-card">
+                    <div class="num">{{ p.total_new }}</div>
+                    <div class="lbl">{{ p.source_type }} — new listings found</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+                        {{ p.total_runs }} runs | {{ p.total_results }} total results | {{ p.avg_duration }}s avg
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Sources Table -->
+        <div class="card">
+            <h3 style="font-size:14px;margin-bottom:12px;">Active Sources ({{ sources|length }})</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Label</th>
+                        <th>URL / Path</th>
+                        <th>Region</th>
+                        <th>Status</th>
+                        <th>Hits</th>
+                        <th>Added</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in sources %}
+                    <tr>
+                        <td>
+                            <span class="badge badge-{{ 'url' if s.source_type == 'watch_url' else 'rss' if s.source_type == 'rss_feed' else 'email' if s.source_type == 'email_sender' else 'folder' }}">
+                                {{ s.source_type }}
+                            </span>
+                        </td>
+                        <td style="font-weight:600;">{{ s.label }}</td>
+                        <td class="url-cell">{{ s.url[:80] }}{% if s.url|length > 80 %}...{% endif %}</td>
+                        <td>{{ 'Edmonton' if 'edmonton' in s.region else 'Montreal' if 'montreal' in s.region else 'Both' }}</td>
+                        <td>
+                            <span class="badge {{ 'badge-enabled' if s.enabled else 'badge-disabled' }}">
+                                {{ 'Active' if s.enabled else 'Disabled' }}
+                            </span>
+                        </td>
+                        <td>{{ s.hit_count }}</td>
+                        <td style="font-size:12px;color:var(--muted);">{{ s.added_at.strftime('%b %d') }}{% if s.added_by %} by {{ s.added_by }}{% endif %}</td>
+                        <td class="actions-cell">
+                            <form method="post" action="/sources/{{ s.id }}/toggle" style="display:inline;">
+                                <button type="submit" class="btn-toggle">{{ 'Disable' if s.enabled else 'Enable' }}</button>
+                            </form>
+                            <form method="post" action="/sources/{{ s.id }}/delete" style="display:inline;" onsubmit="return confirm('Delete this source?');">
+                                <button type="submit" class="btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not sources %}
+                    <tr>
+                        <td colspan="8" style="text-align:center;padding:30px;color:var(--muted);">
+                            No custom sources added yet. Sources from config.yaml are always active.<br>
+                            Add a brokerage URL, RSS feed, email sender, or folder path above.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card" style="background:#f8fafc;">
+            <h3 style="font-size:14px;margin-bottom:8px;">How Sources Work</h3>
+            <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+                <p><strong>Watch URL:</strong> A brokerage or listing page checked daily for new content. The system detects page changes and extracts listing data. Example: <em>https://www.colliers.com/en-ca/properties?market=edmonton&propertyType=multifamily</em></p>
+                <p style="margin-top:8px;"><strong>RSS Feed:</strong> An RSS/Atom feed URL from a brokerage or aggregator that publishes new listings. Example: <em>https://broker-site.com/listings/feed.xml</em></p>
+                <p style="margin-top:8px;"><strong>Email Sender:</strong> An email address that sends listing alerts. The system parses those emails via IMAP. Example: <em>noreply@realtor.ca</em></p>
+                <p style="margin-top:8px;"><strong>Folder Path:</strong> A local directory where broker packages (PDFs, docs) are dropped. The system extracts listing data from files. Default inbox: <em>data/inbox/</em></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

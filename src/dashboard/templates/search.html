@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBG Deal Scout — Search</title>
+    <style>
+        :root { --bbg-blue: #005AAA; --bg: #f5f7fa; --card: #fff; --border: #e2e8f0; --text: #2d3748; --muted: #718096; --green: #27ae60; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Calibri', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+        nav { background: var(--bbg-blue); color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+        nav h1 { font-size: 18px; }
+        nav .nav-links { display: flex; gap: 16px; }
+        nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; }
+        nav a:hover { color: white; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        h2 { font-size: 18px; margin-bottom: 16px; color: var(--bbg-blue); }
+        .search-bar { display: flex; gap: 12px; margin-bottom: 20px; }
+        .search-bar input { flex: 1; padding: 12px 16px; border: 2px solid var(--border); border-radius: 8px; font-size: 15px; }
+        .search-bar input:focus { outline: none; border-color: var(--bbg-blue); }
+        .search-bar button { padding: 12px 24px; background: var(--bbg-blue); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+        .card { background: var(--card); border-radius: 8px; border: 1px solid var(--border); padding: 20px; margin-bottom: 12px; }
+        .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .result-title { color: var(--bbg-blue); text-decoration: none; font-weight: 600; font-size: 15px; }
+        .result-title:hover { text-decoration: underline; }
+        .result-meta { font-size: 12px; color: var(--muted); margin-top: 4px; display: flex; gap: 16px; flex-wrap: wrap; }
+        .result-meta span { display: inline-flex; align-items: center; gap: 4px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .badge-new { background: #e8f5e9; color: var(--green); }
+        .badge-shortlisted { background: #e3f2fd; color: var(--bbg-blue); }
+        .score-pill { display: inline-block; padding: 2px 8px; border-radius: 12px; color: white; font-size: 11px; font-weight: 700; }
+        .score-high { background: var(--green); }
+        .score-mid { background: #f39c12; }
+        .score-low { background: #e74c3c; }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+        .empty-state h3 { font-size: 16px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <nav>
+        <h1>🏢 BBG Deal Scout</h1>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/sources">Sources</a>
+            <a href="/history">History</a>
+            <a href="/search" style="color:white;font-weight:600;">Search</a>
+            <a href="/logout">Sign Out</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>Search Listings</h2>
+
+        <form method="get" action="/search" class="search-bar">
+            <input type="text" name="q" value="{{ query }}" placeholder="Search by title, address, city, source, or notes..." autofocus>
+            <button type="submit">Search</button>
+        </form>
+
+        {% if query %}
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+            {{ results|length }} result{{ 's' if results|length != 1 else '' }} for "{{ query }}"
+        </p>
+        {% endif %}
+
+        {% for l in results %}
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:start;">
+                <div>
+                    <a href="{{ l.source_url or '#' }}" target="_blank" class="result-title">{{ l.title[:120] }}</a>
+                    <div class="result-meta">
+                        <span>📍 {{ l.city or l.region }}</span>
+                        {% if l.asking_price %}<span>💰 ${{ '{:,.0f}'.format(l.asking_price) }}</span>{% endif %}
+                        {% if l.num_units %}<span>🏠 {{ l.num_units }} units</span>{% endif %}
+                        {% if l.listed_cap_rate %}<span>📊 {{ '{:.1f}'.format(l.listed_cap_rate) }}% cap</span>{% endif %}
+                        <span>📅 {{ l.discovered_at.strftime('%b %d, %Y') }}</span>
+                        <span>🔍 {{ l.source_label or l.source }}</span>
+                    </div>
+                    {% if l.address %}<div style="font-size:12px;color:var(--muted);margin-top:4px;">{{ l.address }}</div>{% endif %}
+                    {% if l.notes %}<div style="font-size:12px;margin-top:6px;padding:6px 10px;background:#f8fafc;border-radius:4px;">{{ l.notes[:200] }}</div>{% endif %}
+                </div>
+                <div style="text-align:right;white-space:nowrap;">
+                    <span class="badge badge-{{ l.status }}">{{ l.status }}</span>
+                    {% if l.tier1_score is not none %}
+                    <br><span class="score-pill {{ 'score-high' if l.tier1_score >= 4 else 'score-mid' if l.tier1_score >= 2 else 'score-low' }}" style="margin-top:4px;">{{ l.tier1_score }}/7</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not query %}
+        <div class="empty-state">
+            <h3>Search your listing history</h3>
+            <p>Find any listing by title, address, city, source, or notes.<br>All listings are stored permanently — nothing is lost.</p>
+        </div>
+        {% elif not results %}
+        <div class="empty-state">
+            <h3>No results found</h3>
+            <p>Try different keywords or check the main dashboard for all listings.</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

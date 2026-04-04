@@ -1,0 +1,45 @@
+name: Deploy BBG Deal Scout to Fly.io Toronto
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io (yyz - Toronto)
+    runs-on: ubuntu-latest
+    concurrency: deploy-group
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Create Fly.io app (if not exists)
+        run: |
+          flyctl apps list | grep bbg-deal-scout || \
+          flyctl apps create bbg-deal-scout --org blue-bear-groupgroup-ca
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Create persistent volume (if not exists)
+        run: |
+          flyctl volumes list --app bbg-deal-scout | grep bbg_data || \
+          flyctl volumes create bbg_data --app bbg-deal-scout --region yyz --size 1 --yes
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Set app secrets
+        run: |
+          flyctl secrets set \
+            BBG_ADMIN_PASSWORD="${{ secrets.BBG_ADMIN_PASSWORD }}" \
+            BBG_PRINCIPAL2_PASSWORD="${{ secrets.BBG_PRINCIPAL2_PASSWORD }}" \
+            BBG_NOTIFY_RECIPIENTS="info@bluebeargroup.ca" \
+            --app bbg-deal-scout --stage
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Deploy
+        run: flyctl deploy --remote-only --app bbg-deal-scout
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBG Deal Scout — Analyst</title>
+    <style>
+        :root { --bbg-blue: #005AAA; --bbg-red: #D71920; --bg: #f5f7fa; --card: #fff; --border: #e2e8f0; --text: #2d3748; --muted: #718096; --green: #27ae60; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Calibri', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+        nav { background: var(--bbg-blue); color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+        nav h1 { font-size: 18px; }
+        nav .nav-links { display: flex; gap: 16px; align-items: center; }
+        nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; }
+        nav a:hover { color: white; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        h2 { font-size: 18px; margin-bottom: 16px; color: var(--bbg-blue); }
+        .btn { padding: 10px 20px; background: var(--bbg-blue); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; text-decoration: none; display: inline-block; }
+        .btn:hover { background: #004488; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        th { background: #f8fafc; padding: 12px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 2px solid var(--bbg-blue); }
+        td { padding: 12px 10px; border-bottom: 1px solid var(--border); }
+        tbody tr:hover { background: #f8fafc; }
+        .deal-link { color: var(--bbg-blue); text-decoration: none; font-weight: 600; }
+        .deal-link:hover { text-decoration: underline; }
+        .metric { font-weight: 700; }
+        .metric-good { color: var(--green); }
+        .metric-warn { color: #f39c12; }
+        .metric-bad { color: var(--bbg-red); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .badge-draft { background: #fff3e0; color: #e67e22; }
+        .badge-final { background: #e8f5e9; color: var(--green); }
+        .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+        .empty h3 { margin-bottom: 8px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <nav>
+        <h1>🏢 BBG Deal Scout</h1>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/sources">Sources</a>
+            <a href="/history">History</a>
+            <a href="/search">Search</a>
+            <a href="/analyst" style="color:white;font-weight:600;">Analyst</a>
+            <a href="/logout">Sign Out</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="top-bar">
+            <h2>Deal Analyses</h2>
+            <a href="/analyst/new" class="btn">+ New Analysis</a>
+        </div>
+
+        {% if analyses %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Deal</th>
+                    <th style="text-align:right;">Purchase Price</th>
+                    <th style="text-align:center;">Units</th>
+                    <th style="text-align:center;">Levered IRR</th>
+                    <th style="text-align:center;">EMx</th>
+                    <th style="text-align:center;">Avg CoC</th>
+                    <th style="text-align:center;">DSCR</th>
+                    <th style="text-align:center;">GP IRR</th>
+                    <th style="text-align:center;">LP IRR</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in analyses %}
+                <tr>
+                    <td>
+                        <a href="/analyst/{{ a.id }}" class="deal-link">{{ a.project_name or 'Unnamed Deal' }}</a>
+                        {% if a.address %}<br><small style="color:var(--muted);">{{ a.address[:60] }}</small>{% endif %}
+                    </td>
+                    <td style="text-align:right;">${{ '{:,.0f}'.format(a.purchase_price) }}</td>
+                    <td style="text-align:center;">{{ a.total_units }}</td>
+                    <td style="text-align:center;" class="metric {{ 'metric-good' if a.levered_irr and a.levered_irr > 8 else 'metric-warn' if a.levered_irr and a.levered_irr > 4 else 'metric-bad' }}">
+                        {{ '{:.1f}%'.format(a.levered_irr) if a.levered_irr else '—' }}
+                    </td>
+                    <td style="text-align:center;" class="metric">{{ '{:.2f}x'.format(a.equity_multiple) if a.equity_multiple else '—' }}</td>
+                    <td style="text-align:center;">{{ '{:.1f}%'.format(a.avg_cash_on_cash) if a.avg_cash_on_cash else '—' }}</td>
+                    <td style="text-align:center;" class="metric {{ 'metric-good' if a.avg_dscr and a.avg_dscr > 1.2 else 'metric-bad' }}">
+                        {{ '{:.2f}x'.format(a.avg_dscr) if a.avg_dscr else '—' }}
+                    </td>
+                    <td style="text-align:center;">{{ '{:.1f}%'.format(a.gp_irr) if a.gp_irr else '—' }}</td>
+                    <td style="text-align:center;">{{ '{:.1f}%'.format(a.lp_irr) if a.lp_irr else '—' }}</td>
+                    <td><span class="badge badge-{{ a.status }}">{{ a.status }}</span></td>
+                    <td style="font-size:12px;color:var(--muted);">{{ a.created_at.strftime('%b %d') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">
+            <h3>No analyses yet</h3>
+            <p>Click "New Analysis" to underwrite your first deal, or click "Analyze" on any listing in the Dashboard.</p>
+            <br><a href="/analyst/new" class="btn">+ New Analysis</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

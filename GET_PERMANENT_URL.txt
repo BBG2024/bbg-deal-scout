@@ -1,0 +1,68 @@
+BBG Deal Scout — Getting a Permanent Public URL
+Blue Bear Group Corporation
+================================================
+
+FASTEST PATH — Fly.io Toronto (READY TO DEPLOY)
+================================================
+Double-click: DEPLOY_TO_FLYIO.bat
+Your app will be live at: https://bbg-deal-scout.fly.dev
+  - Token pre-loaded, one-click deployment
+  - Data hosted in Toronto (yyz) — full Canadian sovereignty
+  - Takes 3-5 minutes on first run
+  - Login: admin / BBGAdmin2026!  (change after first login)
+================================================
+
+The ENABLE_PUBLIC_ACCESS.bat gives you a working URL immediately,
+but it changes each time you restart. For a PERMANENT URL:
+
+================================================
+OPTION A — Fly.io Toronto (RECOMMENDED — pre-configured)
+================================================
+Double-click DEPLOY_TO_FLYIO.bat in this folder.
+Everything is automated. Your app will be at:
+  https://bbg-deal-scout.fly.dev
+
+Account: info@bluebeargroup.ca
+Pricing: ~$5-15 USD/month (usage-based)
+Data: Toronto (yyz) — Canadian sovereignty
+
+================================================
+OPTION B — Microsoft Azure Canada Central (~$18-22 CAD/month)
+================================================
+1. Open a Command Prompt on your computer
+2. Install Azure CLI from: https://aka.ms/installazurecliwindows
+3. Double-click DEPLOY_TO_AZURE.bat in this folder
+4. Sign in with your BBG Microsoft account when prompted
+5. The script deploys everything automatically
+
+Your app will be live at: https://bbg-deal-scout.azurewebsites.net
+Data hosted in Toronto (Canada Central) — full data sovereignty.
+
+================================================
+OPTION C — Cloudflare Tunnel (Free, custom domain)
+================================================
+1. Go to https://dash.cloudflare.com and create a FREE account
+   (no credit card required)
+2. In the dashboard, go to: Zero Trust → Networks → Tunnels
+3. Click "Create a tunnel"
+4. Name it: bbg-deal-scout
+5. Copy the tunnel token shown on screen
+6. Create a file in this folder called:  .cloudflare_token
+7. Paste the token into that file and save it
+8. Run ENABLE_PUBLIC_ACCESS.bat — it will use your permanent URL
+
+To connect a custom domain (e.g. deals.bluebeargroup.ca):
+- In Cloudflare Tunnels, add a "Public Hostname"
+- Domain: bluebeargroup.ca (add this to Cloudflare DNS)
+- Subdomain: deals
+- Service: http://localhost:8050
+
+================================================
+
+The ENABLE_PUBLIC_ACCESS.bat (quick tunnel) works perfectly
+for daily team use even without a permanent URL — just run it
+when you need remote access and share the URL with your team.
+
+Blue Bear Group Corporation
+2967 Dundas St. W. #965, Toronto, ON M6P 1Z2
+info@bluebeargroup.ca

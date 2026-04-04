@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBG Deal Scout — New Analysis</title>
+    <style>
+        :root { --bbg-blue: #005AAA; --bbg-red: #D71920; --bg: #f5f7fa; --card: #fff; --border: #e2e8f0; --text: #2d3748; --muted: #718096; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Calibri', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+        nav { background: var(--bbg-blue); color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+        nav h1 { font-size: 18px; }
+        nav .nav-links { display: flex; gap: 16px; }
+        nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+        h2 { font-size: 18px; margin-bottom: 16px; color: var(--bbg-blue); }
+        .section { background: var(--card); border-radius: 8px; border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+        .section h3 { font-size: 14px; color: var(--bbg-blue); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--bbg-blue); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+        .form-group input, .form-group select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; font-family: inherit; }
+        .form-group input:focus { outline: none; border-color: var(--bbg-blue); }
+        .form-group .hint { font-size: 11px; color: var(--muted); }
+        .unit-row { display: grid; grid-template-columns: 80px 1fr; gap: 8px; align-items: center; margin-bottom: 6px; }
+        .unit-row label { font-size: 12px; color: var(--muted); }
+        .unit-row input { padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; }
+        .expense-grid { display: grid; grid-template-columns: 1fr 120px; gap: 6px; align-items: center; }
+        .expense-grid .exp-name { font-size: 12px; color: var(--muted); }
+        .expense-grid input { padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; text-align: right; }
+        .btn { padding: 12px 28px; background: var(--bbg-blue); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: 600; }
+        .btn:hover { background: #004488; }
+        .btn-row { text-align: center; margin-top: 20px; }
+        .info-box { background: #f0f4f8; padding: 12px; border-radius: 6px; font-size: 12px; color: var(--muted); margin-bottom: 12px; border-left: 3px solid var(--bbg-blue); }
+        #unitInputs { max-height: 400px; overflow-y: auto; padding-right: 8px; }
+    </style>
+</head>
+<body>
+    <nav>
+        <h1>🏢 BBG Deal Scout — Analyst</h1>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/analyst">All Analyses</a>
+            <a href="/logout">Sign Out</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>New Deal Analysis</h2>
+
+        {% if prefill and prefill.get('listing_id') %}
+        <div class="info-box">Pre-filled from listing: {{ prefill.get('project_name', '')[:80] }}</div>
+        {% endif %}
+
+        <form method="post" action="/analyst/run">
+            <input type="hidden" name="listing_id" value="{{ prefill.get('listing_id', '') if prefill else '' }}">
+
+            <!-- Property Info -->
+            <div class="section">
+                <h3>Property Information</h3>
+                <div class="grid">
+                    <div class="form-group">
+                        <label>Project Name</label>
+                        <input type="text" name="project_name" value="{{ prefill.get('project_name', '') if prefill else '' }}" placeholder="Enter project name">
+                    </div>
+                    <div class="form-group">
+                        <label>Address</label>
+                        <input type="text" name="address" value="{{ prefill.get('address', '') if prefill else '' }}" placeholder="Enter property address">
+                    </div>
+                    <div class="form-group">
+                        <label>Number of Units</label>
+                        <input type="number" name="num_units" id="numUnits" value="{{ prefill.get('num_units', '') if prefill else '' }}" min="1" max="50" onchange="updateUnitInputs()" placeholder="e.g. 5">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Acquisition -->
+            <div class="section">
+                <h3>Acquisition Costs</h3>
+                <div class="grid">
+                    <div class="form-group">
+                        <label>Purchase Price ($)</label>
+                        <input type="number" name="purchase_price" value="{{ prefill.get('purchase_price', '') if prefill else '' }}" step="1000" placeholder="Enter purchase price">
+                    </div>
+                    <div class="form-group">
+                        <label>Renovation Cost ($)</label>
+                        <input type="number" name="renovation_cost" value="0" step="500">
+                    </div>
+                    <div class="form-group">
+                        <label>Acquisition Fee (%)</label>
+                        <input type="number" name="acquisition_fee_pct" value="3.0" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Other Closing Costs ($)</label>
+                        <input type="number" name="closing_costs" value="0" step="100">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financing -->
+            <div class="section">
+                <h3>Financing</h3>
+                <div class="grid">
+                    <div class="form-group">
+                        <label>LTV (%)</label>
+                        <input type="number" name="ltv_pct" value="" step="5" min="0" max="95" placeholder="e.g. 60">
+                    </div>
+                    <div class="form-group">
+                        <label>Interest Rate (%)</label>
+                        <input type="number" name="interest_rate" value="" step="0.25" placeholder="e.g. 4.25">
+                    </div>
+                    <div class="form-group">
+                        <label>Amortization (months)</label>
+                        <input type="number" name="amort_months" value="" placeholder="e.g. 300 or 480">
+                        <span class="hint">480 = 40 yrs, 300 = 25 yrs, 600 = 50 yrs</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Mortgage Insurance ($)</label>
+                        <input type="number" name="mortgage_insurance" value="0" step="100">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rent Roll -->
+            <div class="section">
+                <h3>Rent Roll (Monthly Rent per Unit)</h3>
+                <div class="info-box">Enter the stabilized (post-renovation) monthly rent for each unit. Rents grow annually by the rent growth rate below.</div>
+                <div id="unitInputs"></div>
+            </div>
+
+            <!-- Operating Expenses -->
+            <div class="section">
+                <h3>Monthly Operating Expenses</h3>
+                <div class="expense-grid">
+                    <span class="exp-name">Insurance</span><input type="number" name="expense_0" value="0" step="10" placeholder="$/mo">
+                    <span class="exp-name">Municipal Taxes</span><input type="number" name="expense_1" value="0" step="10" placeholder="$/mo">
+                    <span class="exp-name">School Taxes</span><input type="number" name="expense_2" value="0" step="10" placeholder="$/mo">
+                    <span class="exp-name">Snow Removal</span><input type="number" name="expense_3" value="0" step="10" placeholder="$/mo">
+                    <span class="exp-name">Lawn/Landscaping</span><input type="number" name="expense_4" value="0" step="10" placeholder="$/mo">
+                    <span class="exp-name">Utility</span><input type="number" name="expense_5" value="0" step="10" placeholder="$/mo">
+                    <span class="exp-name">Maintenance</span><input type="number" name="expense_6" value="0" step="10" placeholder="$/mo">
+                    <span class="exp-name">Management</span><input type="number" name="expense_7" value="0" step="10" placeholder="$/mo">
+                    <span class="exp-name">Concierge</span><input type="number" name="expense_8" value="0" step="10" placeholder="$/mo">
+                </div>
+            </div>
+
+            <!-- Assumptions -->
+            <div class="section">
+                <h3>Growth & Exit Assumptions</h3>
+                <div class="grid">
+                    <div class="form-group">
+                        <label>Annual Rent Growth (%)</label>
+                        <input type="number" name="rent_growth" value="2.0" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Annual Expense Growth (%)</label>
+                        <input type="number" name="expense_growth" value="2.0" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Vacancy Rate (%)</label>
+                        <input type="number" name="vacancy" value="3.0" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Other Monthly Income ($)</label>
+                        <input type="number" name="other_income" value="0" step="50">
+                    </div>
+                    <div class="form-group">
+                        <label>Hold Period (months)</label>
+                        <input type="number" name="exit_month" value="120">
+                        <span class="hint">120 = 10 yrs, 60 = 5 yrs</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Exit Cap Rate (%)</label>
+                        <input type="number" name="exit_cap_rate" value="5.0" step="0.25">
+                    </div>
+                    <div class="form-group">
+                        <label>Selling Costs (%)</label>
+                        <input type="number" name="selling_cost_pct" value="5.0" step="0.5">
+                    </div>
+                </div>
+            </div>
+
+            <!-- CCA / Tax -->
+            <div class="section">
+                <h3>Exit Strategy & Growth Assumptions</h3>
+                <div class="info-box">These growth rates flow through ALL calculations — sell and refinance scenarios at Year 5 and Year 10, cash flow projections, property valuation, and waterfall distributions. Adjust to match your market thesis.</div>
+                <div class="grid">
+                    <div class="form-group">
+                        <label>Annual Value Appreciation (%)</label>
+                        <input type="number" name="appreciation_pct" value="5.0" step="0.5">
+                        <span class="hint">Property value growth (default 5%)</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Annual Rent Increase (%)</label>
+                        <input type="number" name="rent_growth" value="3.0" step="0.5">
+                        <span class="hint">Rental income growth (default 3%)</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Annual Expense Increase (%)</label>
+                        <input type="number" name="expense_growth" value="2.0" step="0.5">
+                        <span class="hint">Operating cost growth (default 2%)</span>
+                    </div>
+                </div>
+                <p style="font-size:12px;color:var(--muted);margin-top:8px;font-weight:600;">Refinance Assumptions (for Year 5 and Year 10 refi scenarios)</p>
+                <div class="grid">
+                    <div class="form-group">
+                        <label>Refi LTV (%)</label>
+                        <input type="number" name="refi_ltv" value="75" step="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Refi Interest Rate (%)</label>
+                        <input type="number" name="refi_rate" value="4.50" step="0.25">
+                    </div>
+                    <div class="form-group">
+                        <label>Refi Amortization (years)</label>
+                        <input type="number" name="refi_amort_years" value="25">
+                    </div>
+                    <div class="form-group">
+                        <label>Refi Closing Costs (%)</label>
+                        <input type="number" name="refi_costs_pct" value="1.5" step="0.5">
+                    </div>
+                </div>
+            </div>
+
+            <!-- CCA / Tax -->
+            <div class="section">
+                <h3>CCA Depreciation (CRA Rules)</h3>
+                <div class="info-box">Capital Cost Allowance reduces taxable rental income. Land is not depreciable — only the building portion qualifies. Class 1 (4% declining balance) applies to most rental buildings acquired after 1987.</div>
+                <div class="grid">
+                    <div class="form-group">
+                        <label>Land Value ($) or Land %</label>
+                        <input type="number" name="land_value" value="0" step="1000">
+                        <span class="hint">Leave at 0 to use 20% of purchase price</span>
+                    </div>
+                    <div class="form-group">
+                        <label>CCA Class</label>
+                        <select name="cca_class">
+                            <option value="1" selected>Class 1 — 4% (most common)</option>
+                            <option value="3">Class 3 — 5% (pre-1988 buildings)</option>
+                            <option value="6">Class 6 — 10% (frame/log/stucco)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Marginal Tax Rate (%)</label>
+                        <input type="number" name="tax_rate" value="50" step="1">
+                        <span class="hint">Combined federal + provincial</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Partnership -->
+            <div class="section">
+                <h3>Partnership Structure</h3>
+                <div class="grid grid-3">
+                    <div class="form-group">
+                        <label>GP Equity Share (%)</label>
+                        <input type="number" name="gp_equity_pct" value="20" step="5" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>LP Equity Share (%)</label>
+                        <input type="number" name="lp_equity_pct" value="80" step="5" min="0" max="100">
+                    </div>
+                </div>
+                <div class="info-box" style="margin-top:12px;">
+                    Waterfall: 8% Pref Return (GP 20% / LP 80%) → Hurdle 2 (GP 50% / LP 50%) → Above (GP 70% / LP 30%)
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button type="submit" class="btn">Run Full Analysis with Sensitivity</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function updateUnitInputs() {
+            const n = parseInt(document.getElementById('numUnits').value) || 5;
+            const container = document.getElementById('unitInputs');
+            let html = '';
+            for (let i = 0; i < n; i++) {
+                html += `<div class="unit-row"><label>Unit ${i+1}</label><input type="number" name="unit_rent_${i}" value="" step="25" placeholder="Monthly rent $"></div>`;
+            }
+            container.innerHTML = html;
+        }
+        updateUnitInputs();
+    </script>
+</body>
+</html>

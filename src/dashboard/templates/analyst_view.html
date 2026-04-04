@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBG Deal Scout — {{ record.project_name or 'Analysis' }}</title>
+    <style>
+        :root { --bbg-blue: #005AAA; --bbg-red: #D71920; --navy: #002060; --bg: #f5f7fa; --card: #fff; --border: #e2e8f0; --text: #2d3748; --muted: #718096; --green: #27ae60; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Calibri', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+        nav { background: var(--bbg-blue); color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+        nav h1 { font-size: 18px; }
+        nav .nav-links { display: flex; gap: 16px; }
+        nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+        /* Header */
+        .deal-header { background: var(--card); border-radius: 8px; border: 1px solid var(--border); padding: 24px; margin-bottom: 20px; }
+        .deal-header h2 { font-size: 22px; color: var(--navy); }
+        .deal-header .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+        /* Metric Cards */
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .metric-card { background: var(--card); padding: 16px; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+        .metric-card .value { font-size: 26px; font-weight: 700; }
+        .metric-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        .mc-blue .value { color: var(--bbg-blue); }
+        .mc-green .value { color: var(--green); }
+        .mc-red .value { color: var(--bbg-red); }
+        .mc-navy .value { color: var(--navy); }
+
+        /* Sections */
+        .section { background: var(--card); border-radius: 8px; border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+        .section h3 { font-size: 15px; color: var(--bbg-blue); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--bbg-blue); }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: var(--bbg-blue); color: white; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+        td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+        tr:hover { background: #f8fafc; }
+        .right { text-align: right; }
+        .center { text-align: center; }
+
+        /* Waterfall */
+        .wf-table th { background: var(--navy); }
+        .wf-tier { font-weight: 600; color: var(--bbg-blue); }
+        .wf-total { font-weight: 700; border-top: 2px solid var(--navy); }
+
+        /* Sensitivity */
+        .sens-table th { background: #0070C0; }
+        .sens-good { background: #e8f5e9; }
+        .sens-bad { background: #fef2f2; }
+
+        /* Sources & Uses */
+        .su-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .su-box { padding: 12px; }
+        .su-box h4 { font-size: 13px; color: var(--bbg-blue); margin-bottom: 8px; text-transform: uppercase; }
+        .su-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+        .su-total { font-weight: 700; border-top: 2px solid var(--bbg-blue); padding-top: 6px; margin-top: 4px; }
+
+        /* Two column layout */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 768px) { .two-col, .su-grid { grid-template-columns: 1fr; } }
+
+        /* Bar chart (CSS-only) */
+        .bar-chart { margin-top: 12px; }
+        .bar-row { display: flex; align-items: center; margin-bottom: 6px; }
+        .bar-label { width: 60px; font-size: 12px; color: var(--muted); text-align: right; padding-right: 8px; }
+        .bar-track { flex: 1; height: 20px; background: #f0f4f8; border-radius: 3px; overflow: hidden; position: relative; }
+        .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+        .bar-val { position: absolute; right: 6px; top: 2px; font-size: 11px; color: var(--text); font-weight: 600; }
+        .bar-noi { background: var(--bbg-blue); }
+        .bar-cf { background: var(--green); }
+    </style>
+</head>
+<body>
+    <nav>
+        <h1>🏢 BBG Deal Scout — Analyst</h1>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/analyst">All Analyses</a>
+            <a href="/analyst/new">+ New</a>
+            <a href="/logout">Sign Out</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Deal Header -->
+        <div class="deal-header">
+            <div style="display:flex;justify-content:space-between;align-items:start;">
+                <div>
+                    <h2>{{ record.project_name or 'Unnamed Deal' }}</h2>
+                    <div class="sub">{{ record.address or '' }} — Analysis #{{ record.id }} — {{ record.created_at.strftime('%B %d, %Y') }}{% if record.created_by %} by {{ record.created_by }}{% endif %}</div>
+                </div>
+                <a href="/analyst/{{ record.id }}/pdf" style="padding:10px 20px;background:var(--bbg-blue);color:white;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;">Download Report</a>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card mc-blue">
+                <div class="value">{{ '{:.1f}%'.format(record.levered_irr) if record.levered_irr else '—' }}</div>
+                <div class="label">Levered IRR</div>
+            </div>
+            <div class="metric-card mc-navy">
+                <div class="value">{{ '{:.2f}x'.format(record.equity_multiple) if record.equity_multiple else '—' }}</div>
+                <div class="label">Equity Multiple</div>
+            </div>
+            <div class="metric-card mc-green">
+                <div class="value">{{ '{:.1f}%'.format(record.avg_cash_on_cash) if record.avg_cash_on_cash else '—' }}</div>
+                <div class="label">Avg Cash on Cash</div>
+            </div>
+            <div class="metric-card mc-blue">
+                <div class="value">{{ '{:.2f}x'.format(record.avg_dscr) if record.avg_dscr else '—' }}</div>
+                <div class="label">Avg DSCR</div>
+            </div>
+            <div class="metric-card mc-red">
+                <div class="value">${{ '{:,.0f}'.format(record.total_profit) if record.total_profit else '0' }}</div>
+                <div class="label">Total Profit</div>
+            </div>
+            <div class="metric-card mc-blue">
+                <div class="value">{{ '{:.1f}%'.format(record.gp_irr) if record.gp_irr else '—' }}</div>
+                <div class="label">GP IRR</div>
+            </div>
+            <div class="metric-card mc-green">
+                <div class="value">{{ '{:.1f}%'.format(record.lp_irr) if record.lp_irr else '—' }}</div>
+                <div class="label">LP IRR</div>
+            </div>
+        </div>
+
+        <div class="two-col">
+            <!-- Sources & Uses -->
+            <div class="section">
+                <h3>Sources & Uses of Funds</h3>
+                <div class="su-grid">
+                    <div class="su-box">
+                        <h4>Sources</h4>
+                        <div class="su-row"><span>Debt</span><span>${{ '{:,.0f}'.format(output.get('debt_amount', 0)) }}</span></div>
+                        <div class="su-row"><span>Equity</span><span>${{ '{:,.0f}'.format(output.get('equity_amount', 0)) }}</span></div>
+                        <div class="su-row su-total"><span>Total Sources</span><span>${{ '{:,.0f}'.format(output.get('total_sources', 0)) }}</span></div>
+                    </div>
+                    <div class="su-box">
+                        <h4>Uses</h4>
+                        <div class="su-row"><span>Purchase Price</span><span>${{ '{:,.0f}'.format(input.get('purchase_price', 0)) }}</span></div>
+                        <div class="su-row"><span>Renovation</span><span>${{ '{:,.0f}'.format(input.get('renovation_cost', 0)) }}</span></div>
+                        <div class="su-row"><span>Acq. Fee + MI</span><span>${{ '{:,.0f}'.format(output.get('total_uses', 0) - input.get('purchase_price', 0) - input.get('renovation_cost', 0)) }}</span></div>
+                        <div class="su-row su-total"><span>Total Uses</span><span>${{ '{:,.0f}'.format(output.get('total_uses', 0)) }}</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Return Summary -->
+            <div class="section">
+                <h3>Return Summary</h3>
+                {% set ret = output.get('returns', {}) %}
+                <table>
+                    <tr><td>Unlevered IRR</td><td class="right">{{ '{:.2f}%'.format(ret.get('unlevered_irr', 0)) }}</td></tr>
+                    <tr><td>Unlevered Multiple</td><td class="right">{{ '{:.2f}x'.format(ret.get('unlevered_emx', 0)) }}</td></tr>
+                    <tr><td>Levered IRR</td><td class="right" style="font-weight:700;color:var(--bbg-blue);">{{ '{:.2f}%'.format(ret.get('levered_irr', 0)) }}</td></tr>
+                    <tr><td>Levered Multiple</td><td class="right" style="font-weight:700;">{{ '{:.2f}x'.format(ret.get('levered_emx', 0)) }}</td></tr>
+                    <tr><td>Entry Cap Rate</td><td class="right">{{ '{:.2f}%'.format(ret.get('cap_rate_entry', 0)) }}</td></tr>
+                    <tr><td>LTV at Purchase</td><td class="right">{{ '{:.1f}%'.format(ret.get('ltv_at_purchase', 0)) }}</td></tr>
+                    <tr><td>Break-Even Ratio</td><td class="right">{{ '{:.1f}%'.format(ret.get('break_even_ratio', 0)) }}</td></tr>
+                    <tr><td>Min DSCR</td><td class="right">{{ '{:.2f}x'.format(ret.get('min_dscr', 0)) }}</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Annual Cash Flow -->
+        <div class="section">
+            <h3>Annual Cash Flow Projection</h3>
+            {% set annuals = output.get('annual_summaries', []) %}
+            <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th class="right">Gross Rent</th>
+                        <th class="right">Vacancy</th>
+                        <th class="right">Expenses</th>
+                        <th class="right">NOI</th>
+                        <th class="right">Debt Service</th>
+                        <th class="right">Cash Flow</th>
+                        <th class="center">DSCR</th>
+                        <th class="center">CoC</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in annuals %}
+                    <tr>
+                        <td>Year {{ s.get('year', '') }}</td>
+                        <td class="right">${{ '{:,.0f}'.format(s.get('gross_rent', 0)) }}</td>
+                        <td class="right" style="color:var(--bbg-red);">(${{ '{:,.0f}'.format(s.get('vacancy', 0)) }})</td>
+                        <td class="right">(${{ '{:,.0f}'.format(s.get('total_expenses', 0)) }})</td>
+                        <td class="right" style="font-weight:600;">${{ '{:,.0f}'.format(s.get('noi', 0)) }}</td>
+                        <td class="right">(${{ '{:,.0f}'.format(s.get('debt_service', 0)) }})</td>
+                        <td class="right" style="font-weight:600;color:{{ 'var(--green)' if s.get('cash_flow_after_debt', 0) > 0 else 'var(--bbg-red)' }};">${{ '{:,.0f}'.format(s.get('cash_flow_after_debt', 0)) }}</td>
+                        <td class="center">{{ '{:.2f}x'.format(s.get('dscr', 0)) }}</td>
+                        <td class="center">{{ '{:.1f}%'.format(s.get('cash_on_cash', 0) * 100) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+
+            <!-- NOI Bar Chart -->
+            {% if annuals %}
+            <div class="bar-chart">
+                <p style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:600;">NOI Trend</p>
+                {% set max_noi = annuals|map(attribute='noi')|max if annuals else 1 %}
+                {% for s in annuals %}
+                <div class="bar-row">
+                    <div class="bar-label">Yr {{ s.get('year', '') }}</div>
+                    <div class="bar-track">
+                        <div class="bar-fill bar-noi" style="width: {{ (s.get('noi', 0) / (max_noi if max_noi > 0 else 1) * 100)|int }}%;"></div>
+                        <div class="bar-val">${{ '{:,.0f}'.format(s.get('noi', 0)) }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Waterfall Distribution -->
+        <div class="section">
+            <h3>Waterfall Distribution</h3>
+            {% set wf = output.get('waterfall', {}) %}
+            <div class="two-col" style="margin-bottom:16px;">
+                <div>
+                    <table class="wf-table">
+                        <thead><tr><th colspan="2">GP (Sponsor)</th></tr></thead>
+                        <tbody>
+                            <tr><td>Contribution</td><td class="right">${{ '{:,.0f}'.format(wf.get('gp_contribution', 0)) }}</td></tr>
+                            <tr><td>Total Distributions</td><td class="right">${{ '{:,.0f}'.format(wf.get('gp_distributions', 0)) }}</td></tr>
+                            <tr><td>Net Profit</td><td class="right" style="font-weight:700;color:{{ 'var(--green)' if wf.get('gp_profit', 0) > 0 else 'var(--bbg-red)' }};">${{ '{:,.0f}'.format(wf.get('gp_profit', 0)) }}</td></tr>
+                            <tr><td>IRR</td><td class="right" style="font-weight:700;">{{ '{:.2f}%'.format(wf.get('gp_irr', 0)) }}</td></tr>
+                            <tr><td>Equity Multiple</td><td class="right">{{ '{:.2f}x'.format(wf.get('gp_emx', 0)) }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <table class="wf-table">
+                        <thead><tr><th colspan="2">LP (Investor)</th></tr></thead>
+                        <tbody>
+                            <tr><td>Contribution</td><td class="right">${{ '{:,.0f}'.format(wf.get('lp_contribution', 0)) }}</td></tr>
+                            <tr><td>Total Distributions</td><td class="right">${{ '{:,.0f}'.format(wf.get('lp_distributions', 0)) }}</td></tr>
+                            <tr><td>Net Profit</td><td class="right" style="font-weight:700;color:{{ 'var(--green)' if wf.get('lp_profit', 0) > 0 else 'var(--bbg-red)' }};">${{ '{:,.0f}'.format(wf.get('lp_profit', 0)) }}</td></tr>
+                            <tr><td>IRR</td><td class="right" style="font-weight:700;">{{ '{:.2f}%'.format(wf.get('lp_irr', 0)) }}</td></tr>
+                            <tr><td>Equity Multiple</td><td class="right">{{ '{:.2f}x'.format(wf.get('lp_emx', 0)) }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {% if wf.get('tier_distributions') %}
+            <table class="wf-table">
+                <thead>
+                    <tr><th>Waterfall Tier</th><th class="center">GP Share</th><th class="center">LP Share</th><th class="center">IRR Hurdle</th><th class="right">GP Total</th><th class="right">LP Total</th></tr>
+                </thead>
+                <tbody>
+                    {% for t in wf.get('tier_distributions', []) %}
+                    <tr>
+                        <td class="wf-tier">{{ t.get('name', '') }}</td>
+                        <td class="center">{{ '{:.0f}%'.format(t.get('gp_share_pct', 0)) }}</td>
+                        <td class="center">{{ '{:.0f}%'.format(t.get('lp_share_pct', 0)) }}</td>
+                        <td class="center">{{ '{:.0f}%'.format(t.get('irr_hurdle', 0)) if t.get('irr_hurdle') else '—' }}</td>
+                        <td class="right">${{ '{:,.0f}'.format(t.get('gp_total', 0)) }}</td>
+                        <td class="right">${{ '{:,.0f}'.format(t.get('lp_total', 0)) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+
+        <!-- Exit Strategy Comparison -->
+        {% set exits = output.get('exit_analysis', {}) %}
+        {% if exits and exits.get('scenarios') %}
+        <div class="section">
+            <h3>Exit Strategy Comparison</h3>
+            {% set eg = exits.get('growth', {}) %}
+            <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+                Growth assumptions: {{ eg.get('appreciation', 5) }}% annual appreciation | {{ eg.get('rent_increase', 3) }}% rent increase | {{ eg.get('expense_increase', 2) }}% expense increase
+            </div>
+
+            <!-- Sell Scenarios -->
+            <p style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--navy);">SELL SCENARIOS</p>
+            <table>
+                <thead><tr style="background:var(--navy);">
+                    <th>Scenario</th>
+                    <th class="right">Property Value</th>
+                    <th class="right">Loan Balance</th>
+                    <th class="right">Net Proceeds</th>
+                    <th class="right">Cumulative CF</th>
+                    <th class="right">Total Profit</th>
+                    <th class="center">IRR</th>
+                    <th class="center">EMx</th>
+                </tr></thead>
+                <tbody>
+                {% for sc in exits.get('scenarios', []) %}
+                {% if sc.type == 'sell' %}
+                <tr>
+                    <td style="font-weight:600;">{{ sc.label }}</td>
+                    <td class="right">${{ '{:,.0f}'.format(sc.appreciated_value) }}</td>
+                    <td class="right">${{ '{:,.0f}'.format(sc.loan_balance) }}</td>
+                    <td class="right" style="font-weight:600;">${{ '{:,.0f}'.format(sc.net_sale_proceeds or 0) }}</td>
+                    <td class="right">${{ '{:,.0f}'.format(sc.cumulative_cf) }}</td>
+                    <td class="right" style="font-weight:700;color:{{ 'var(--green)' if (sc.total_profit or 0) > 0 else 'var(--bbg-red)' }};">${{ '{:,.0f}'.format(sc.total_profit or 0) }}</td>
+                    <td class="center" style="font-weight:700;color:var(--bbg-blue);">{{ '{:.1f}%'.format(sc.levered_irr) }}</td>
+                    <td class="center">{{ '{:.2f}x'.format(sc.equity_multiple) }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Refinance Scenarios -->
+            <p style="font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--navy);">REFINANCE SCENARIOS</p>
+            <table>
+                <thead><tr style="background:#0070C0;">
+                    <th>Scenario</th>
+                    <th class="right">Appraised Value</th>
+                    <th class="right">New Loan</th>
+                    <th class="right">Cash Out</th>
+                    <th class="right">New Payment</th>
+                    <th class="right">Post-Refi CF/yr</th>
+                    <th class="center">Full-Cycle IRR</th>
+                    <th class="center">EMx</th>
+                </tr></thead>
+                <tbody>
+                {% for sc in exits.get('scenarios', []) %}
+                {% if sc.type == 'refinance' %}
+                <tr>
+                    <td style="font-weight:600;">{{ sc.label }}</td>
+                    <td class="right">${{ '{:,.0f}'.format(sc.appreciated_value) }}</td>
+                    <td class="right">${{ '{:,.0f}'.format(sc.new_loan or 0) }}</td>
+                    <td class="right" style="font-weight:700;color:var(--green);">${{ '{:,.0f}'.format(sc.cash_out or 0) }}</td>
+                    <td class="right">${{ '{:,.0f}'.format(sc.new_monthly_pmt or 0) }}/mo</td>
+                    <td class="right" style="color:{{ 'var(--green)' if (sc.post_refi_cf or 0) > 0 else 'var(--bbg-red)' }};">${{ '{:,.0f}'.format(sc.post_refi_cf or 0) }}</td>
+                    <td class="center" style="font-weight:700;color:var(--bbg-blue);">{{ '{:.1f}%'.format(sc.levered_irr) }}</td>
+                    <td class="center">{{ '{:.2f}x'.format(sc.equity_multiple) }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+
+            {% if exits.get('best_irr') %}
+            <div style="margin-top:12px;padding:10px;background:#f0f4f8;border-radius:6px;font-size:12px;">
+                <strong>Best IRR:</strong> {{ exits.get('best_irr', '') }} |
+                <strong>Best Multiple:</strong> {{ exits.get('best_emx', '') }}
+                {% if exits.get('best_cash_out') %} | <strong>Best Cash-Out (Refi):</strong> {{ exits.get('best_cash_out', '') }}{% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- CMHC Financing Comparison -->
+        {% set cmhc = output.get('cmhc_options', []) %}
+        {% if cmhc %}
+        <div class="section">
+            <h3>CMHC Financing Comparison</h3>
+            <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr style="background:var(--navy);">
+                        <th>Program</th>
+                        <th class="center">Down Pmt</th>
+                        <th class="center">LTV</th>
+                        <th class="center">Amort</th>
+                        <th class="right">Insurance</th>
+                        <th class="right">Total Loan</th>
+                        <th class="center">Rate</th>
+                        <th class="right">Monthly Pmt</th>
+                        <th class="right">Annual DS</th>
+                        <th class="right">Equity Req'd</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in cmhc %}
+                    <tr>
+                        <td style="font-weight:600;font-size:12px;">{{ c.label }}</td>
+                        <td class="center">{{ c.down_payment_pct }}</td>
+                        <td class="center">{{ c.ltv }}</td>
+                        <td class="center">{{ c.amort_years }} yr</td>
+                        <td class="right">{{ c.insurance_amt }} <span style="font-size:10px;color:var(--muted);">({{ c.insurance_pct }})</span></td>
+                        <td class="right">{{ c.total_loan }}</td>
+                        <td class="center" style="font-weight:600;">{{ c.interest_rate }}</td>
+                        <td class="right">{{ c.monthly_pmt }}</td>
+                        <td class="right" style="font-weight:600;">{{ c.annual_ds }}</td>
+                        <td class="right" style="font-weight:600;color:var(--bbg-blue);">{{ c.equity_required }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+                CMHC rates are approximate and based on published schedules. MLI Select requires energy efficiency, affordability, or accessibility criteria. Verify current rates with CMHC before finalizing.
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- CCA Depreciation Schedule -->
+        {% set cca = output.get('cca_schedule') %}
+        {% if cca %}
+        <div class="section">
+            <h3>CCA Depreciation (CRA Class {{ cca.cca_class }} — {{ cca.cca_rate_pct }}% Declining Balance)</h3>
+            <div class="two-col" style="margin-bottom:16px;">
+                <div>
+                    <table>
+                        <tr><td>Depreciable Cost (Building)</td><td class="right" style="font-weight:600;">${{ '{:,.0f}'.format(cca.total_depreciable_cost) }}</td></tr>
+                        <tr><td>Land Value (Non-Depreciable)</td><td class="right">${{ '{:,.0f}'.format(cca.land_value) }}</td></tr>
+                        <tr><td>Total CCA Claimed</td><td class="right" style="font-weight:600;color:var(--green);">${{ '{:,.0f}'.format(cca.total_cca_claimed) }}</td></tr>
+                        <tr><td>Total Tax Savings</td><td class="right" style="font-weight:600;color:var(--green);">${{ '{:,.0f}'.format(cca.total_tax_savings) }}</td></tr>
+                    </table>
+                </div>
+                <div>
+                    <table>
+                        <tr><td>Final UCC (End of Hold)</td><td class="right">${{ '{:,.0f}'.format(cca.final_ucc) }}</td></tr>
+                        <tr><td>Recapture on Sale</td><td class="right" style="color:var(--bbg-red);">${{ '{:,.0f}'.format(cca.recapture_amount) }}</td></tr>
+                        <tr><td>Recapture Tax</td><td class="right" style="color:var(--bbg-red);">(${{ '{:,.0f}'.format(cca.recapture_tax) }})</td></tr>
+                        <tr><td>Net Tax Benefit (CCA - Recapture)</td><td class="right" style="font-weight:600;">${{ '{:,.0f}'.format(cca.total_tax_savings - cca.recapture_tax) }}</td></tr>
+                    </table>
+                </div>
+            </div>
+            <table>
+                <thead><tr style="background:#0070C0;"><th>Year</th><th class="right">Opening UCC</th><th class="right">Additions</th><th class="right">CCA Claimed</th><th class="right">Closing UCC</th><th class="right">Cumulative CCA</th><th class="right">Tax Savings</th></tr></thead>
+                <tbody>
+                {% for y in cca.get('years', []) %}
+                    <tr>
+                        <td>Year {{ y.year }}</td>
+                        <td class="right">${{ '{:,.0f}'.format(y.opening_ucc) }}</td>
+                        <td class="right">{{ '${:,.0f}'.format(y.additions) if y.additions > 0 else '—' }}</td>
+                        <td class="right" style="font-weight:600;color:var(--green);">${{ '{:,.0f}'.format(y.cca_claimed) }}</td>
+                        <td class="right">${{ '{:,.0f}'.format(y.closing_ucc) }}</td>
+                        <td class="right">${{ '{:,.0f}'.format(y.cumulative_cca) }}</td>
+                        <td class="right" style="color:var(--green);">${{ '{:,.0f}'.format(y.tax_savings) }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+                Half-year rule applied in Year 1. CCA can only reduce rental income to zero (rental property restriction). Recapture applies if building sold above UCC.
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- After-Tax Returns -->
+        {% set at = output.get('after_tax_returns') %}
+        {% if at %}
+        <div class="section">
+            <h3>After-Tax Impact (CCA Benefit)</h3>
+            <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <div class="metric-card mc-green">
+                    <div class="value">${{ '{:,.0f}'.format(at.total_tax_savings) }}</div>
+                    <div class="label">Total CCA Tax Savings</div>
+                </div>
+                <div class="metric-card mc-red">
+                    <div class="value">(${{ '{:,.0f}'.format(at.recapture_tax) }})</div>
+                    <div class="label">Recapture Tax on Sale</div>
+                </div>
+                <div class="metric-card mc-blue">
+                    <div class="value">${{ '{:,.0f}'.format(at.net_tax_benefit) }}</div>
+                    <div class="label">Net Tax Benefit</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Sensitivity & Scenarios -->
+        {% set sens = output.get('sensitivity', []) %}
+        {% if sens %}
+        <div class="section">
+            <h3>Scenario & Sensitivity Analysis</h3>
+
+            <!-- Named Scenarios -->
+            {% set scenarios = [] %}
+            {% for s in sens %}{% if s.get('variable_changed') == 'scenario' %}{% if scenarios.append(s) %}{% endif %}{% endif %}{% endfor %}
+            {% if scenarios %}
+            <p style="font-size:13px;font-weight:600;margin-bottom:8px;">Scenario Comparison</p>
+            <table class="sens-table" style="margin-bottom:20px;">
+                <thead>
+                    <tr><th>Scenario</th><th class="center">Levered IRR</th><th class="center">EMx</th><th class="center">Avg CoC</th><th class="center">DSCR</th><th class="center">GP IRR</th><th class="center">LP IRR</th></tr>
+                </thead>
+                <tbody>
+                    {% for s in scenarios %}
+                    <tr class="{{ 'sens-good' if s.get('levered_irr', 0) > 5 else 'sens-bad' if s.get('levered_irr', 0) < 0 else '' }}">
+                        <td style="font-weight:600;">{{ s.get('scenario_name', '') }}</td>
+                        <td class="center">{{ '{:.1f}%'.format(s.get('levered_irr', 0)) }}</td>
+                        <td class="center">{{ '{:.2f}x'.format(s.get('equity_multiple', 0)) }}</td>
+                        <td class="center">{{ '{:.1f}%'.format(s.get('cash_on_cash', 0)) }}</td>
+                        <td class="center">{{ '{:.2f}x'.format(s.get('dscr', 0)) }}</td>
+                        <td class="center">{{ '{:.1f}%'.format(s.get('gp_irr', 0)) }}</td>
+                        <td class="center">{{ '{:.1f}%'.format(s.get('lp_irr', 0)) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <!-- Sensitivity Tables by Variable -->
+            {% set var_types = ['vacancy_percent', 'rent_growth_percent', 'interest_rate', 'terminal_cap_rate', 'expense_growth_percent'] %}
+            {% set var_labels = {'vacancy_percent': 'Vacancy Rate', 'rent_growth_percent': 'Rent Growth', 'interest_rate': 'Interest Rate', 'terminal_cap_rate': 'Exit Cap Rate', 'expense_growth_percent': 'Expense Growth'} %}
+            {% for vt in var_types %}
+            {% set vt_items = [] %}
+            {% for s in sens %}{% if s.get('variable_changed') == vt %}{% if vt_items.append(s) %}{% endif %}{% endif %}{% endfor %}
+            {% if vt_items %}
+            <p style="font-size:13px;font-weight:600;margin-bottom:6px;margin-top:16px;">{{ var_labels.get(vt, vt) }}</p>
+            <table class="sens-table" style="margin-bottom:8px;">
+                <thead><tr><th>Value</th><th class="center">Levered IRR</th><th class="center">EMx</th><th class="center">DSCR</th><th class="center">LP IRR</th></tr></thead>
+                <tbody>
+                    {% for s in vt_items %}
+                    <tr class="{{ 'sens-good' if s.get('levered_irr', 0) > 5 else 'sens-bad' if s.get('levered_irr', 0) < 0 else '' }}">
+                        <td>{{ s.get('variable_value', '') }}{% if 'percent' in vt or 'rate' in vt %}%{% endif %}</td>
+                        <td class="center">{{ '{:.1f}%'.format(s.get('levered_irr', 0)) }}</td>
+                        <td class="center">{{ '{:.2f}x'.format(s.get('equity_multiple', 0)) }}</td>
+                        <td class="center">{{ '{:.2f}x'.format(s.get('dscr', 0)) }}</td>
+                        <td class="center">{{ '{:.1f}%'.format(s.get('lp_irr', 0)) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Sale -->
+        <div class="section">
+            <h3>Exit / Disposition</h3>
+            <table>
+                <tr><td>Sale Price</td><td class="right" style="font-weight:700;">${{ '{:,.0f}'.format(output.get('sale_price', 0)) }}</td></tr>
+                <tr><td>Selling Costs</td><td class="right">(${{ '{:,.0f}'.format(output.get('sale_price', 0) * 0.05) }})</td></tr>
+                <tr><td>Net Sale Proceeds (after loan payoff)</td><td class="right" style="font-weight:700;color:var(--green);">${{ '{:,.0f}'.format(output.get('net_sale_proceeds', 0)) }}</td></tr>
+            </table>
+        </div>
+
+        <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:20px;">
+            Blue Bear Group Corp. — Deal Analyst | Analysis #{{ record.id }} | Generated {{ record.created_at.strftime('%B %d, %Y at %I:%M %p') }}<br>
+            This analysis is for internal use only. Verify all inputs before making investment decisions.
+        </p>
+    </div>
+</body>
+</html>

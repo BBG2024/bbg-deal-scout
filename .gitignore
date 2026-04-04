@@ -1,0 +1,29 @@
+# Config with secrets
+config.yaml
+
+# Database
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Exports
+data/*.csv
+
+# Logs
+logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

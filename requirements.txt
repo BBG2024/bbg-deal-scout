@@ -1,0 +1,34 @@
+# BBG Deal Scout — Dependencies
+# Install: pip install -r requirements.txt
+
+# Core
+pyyaml>=6.0
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=4.9
+feedparser>=6.0
+
+# Database
+peewee>=3.17
+
+# Dashboard
+fastapi>=0.104
+uvicorn>=0.24
+gunicorn>=21.2
+jinja2>=3.1
+python-multipart>=0.0.6
+itsdangerous>=2.1
+
+# Email
+imapclient>=2.3
+
+# Scheduling & Utils
+schedule>=1.2
+python-dateutil>=2.8
+hashlib-additional>=1.0.1; python_version < "3.0"
+
+# Logging
+rich>=13.7
+
+# Text extraction
+trafilatura>=1.6

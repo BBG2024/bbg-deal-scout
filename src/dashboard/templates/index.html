@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBG Deal Scout — Dashboard</title>
+    <style>
+        :root {
+            --bbg-blue: #005AAA;
+            --bbg-red: #D71920;
+            --bbg-dark: #1a1a2e;
+            --bg: #f5f7fa;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #2d3748;
+            --muted: #718096;
+            --green: #27ae60;
+            --orange: #f39c12;
+            --red: #e74c3c;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Calibri', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+        /* --- Nav --- */
+        nav { background: var(--bbg-blue); color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        nav h1 { font-size: 18px; font-weight: 700; }
+        nav h1 span { color: rgba(255,255,255,0.6); font-weight: 400; font-size: 13px; }
+        nav .user-info { font-size: 13px; display: flex; align-items: center; gap: 12px; }
+        nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 12px; }
+        nav a:hover { color: white; }
+
+        /* --- Stats Bar --- */
+        .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; padding: 20px 24px; }
+        .stat-card { background: var(--card); padding: 16px; border-radius: 8px; border: 1px solid var(--border); }
+        .stat-card .number { font-size: 28px; font-weight: 700; color: var(--bbg-blue); }
+        .stat-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* --- Filters --- */
+        .filters { padding: 0 24px 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .filters select, .filters input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white; }
+        .filters button { padding: 8px 16px; background: var(--bbg-blue); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .filters button.reset { background: #eee; color: var(--text); }
+
+        /* --- Table --- */
+        .table-wrap { padding: 0 24px 24px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        thead th { background: #f8fafc; padding: 12px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); border-bottom: 2px solid var(--bbg-blue); position: sticky; top: 52px; z-index: 10; }
+        tbody td { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        tbody tr:hover { background: #f8fafc; }
+
+        .listing-title { color: var(--bbg-blue); text-decoration: none; font-weight: 600; font-size: 13px; display: block; max-width: 300px; }
+        .listing-title:hover { text-decoration: underline; }
+        .listing-source { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .badge-new { background: #e8f5e9; color: var(--green); }
+        .badge-reviewed { background: #fff3e0; color: var(--orange); }
+        .badge-shortlisted { background: #e3f2fd; color: var(--bbg-blue); }
+        .badge-passed { background: #f3f4f6; color: var(--muted); }
+        .badge-dead { background: #fef2f2; color: var(--red); }
+
+        .score-pill { display: inline-block; padding: 3px 10px; border-radius: 12px; color: white; font-size: 12px; font-weight: 700; }
+        .score-high { background: var(--green); }
+        .score-mid { background: var(--orange); }
+        .score-low { background: var(--red); }
+        .score-na { background: #bdc3c7; }
+
+        .region-tag { font-size: 11px; padding: 2px 6px; border-radius: 3px; background: #f0f4f8; color: var(--bbg-blue); }
+
+        .flag-btn { background: none; border: none; cursor: pointer; font-size: 16px; opacity: 0.4; }
+        .flag-btn:hover, .flag-btn.flagged { opacity: 1; }
+
+        /* --- Actions --- */
+        .actions-cell { display: flex; gap: 4px; align-items: center; }
+        .actions-cell select { padding: 4px 6px; font-size: 12px; border: 1px solid var(--border); border-radius: 4px; }
+        .actions-cell button { padding: 4px 8px; font-size: 11px; background: var(--bbg-blue); color: white; border: none; border-radius: 4px; cursor: pointer; }
+
+        /* --- Pagination --- */
+        .pagination { padding: 16px 24px; display: flex; justify-content: center; gap: 8px; }
+        .pagination a { padding: 8px 14px; border: 1px solid var(--border); border-radius: 6px; text-decoration: none; color: var(--text); font-size: 13px; }
+        .pagination a.active { background: var(--bbg-blue); color: white; border-color: var(--bbg-blue); }
+
+        /* --- Scan Log --- */
+        .scan-log { padding: 0 24px 24px; }
+        .scan-log h3 { font-size: 14px; margin-bottom: 8px; color: var(--muted); }
+        .scan-log table { font-size: 12px; }
+        .scan-log td { padding: 6px 8px; }
+
+        /* --- Responsive --- */
+        @media (max-width: 768px) {
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+            .filters { flex-direction: column; }
+        }
+
+        /* --- Score detail tooltip --- */
+        .score-detail { position: relative; cursor: help; }
+        .score-detail .tooltip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--bbg-dark); color: white; padding: 10px; border-radius: 6px; font-size: 11px; white-space: nowrap; z-index: 50; }
+        .score-detail:hover .tooltip { display: block; }
+        .check-pass { color: #4ade80; }
+        .check-fail { color: #f87171; }
+        .check-na { color: #9ca3af; }
+    </style>
+</head>
+<body>
+    <nav>
+        <h1>🏢 BBG Deal Scout <span>| Blue Bear Group Corp.</span></h1>
+        <div class="user-info">
+            <a href="/" style="color:white;font-weight:600;">Dashboard</a>
+            <a href="/sources">Sources</a>
+            <a href="/history">History</a>
+            <a href="/search">Search</a>
+            <a href="/analyst">Analyst</a>
+            <span style="opacity:0.5;">|</span>
+            <span>{{ user }}</span>
+            <a href="/logout">Sign Out</a>
+        </div>
+    </nav>
+
+    <!-- Stats Cards -->
+    <div class="stats-bar">
+        <div class="stat-card">
+            <div class="number">{{ stats.total }}</div>
+            <div class="label">Total Listings</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" style="color: var(--green);">{{ stats.new }}</div>
+            <div class="label">New (Unreviewed)</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" style="color: var(--bbg-blue);">{{ stats.shortlisted }}</div>
+            <div class="label">Shortlisted</div>
+        </div>
+        <div class="stat-card">
+            <div class="number">{{ stats.by_region.greater_edmonton }}</div>
+            <div class="label">Edmonton Region</div>
+        </div>
+        <div class="stat-card">
+            <div class="number">{{ stats.by_region.greater_montreal }}</div>
+            <div class="label">Montreal Region</div>
+        </div>
+        <div class="stat-card">
+            <div class="number">{{ stats.scored }}</div>
+            <div class="label">Scored</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form class="filters" method="get" action="/">
+        <select name="region">
+            <option value="">All Regions</option>
+            <option value="greater_edmonton" {% if filters.region == 'greater_edmonton' %}selected{% endif %}>Greater Edmonton</option>
+            <option value="greater_montreal" {% if filters.region == 'greater_montreal' %}selected{% endif %}>Greater Montreal</option>
+        </select>
+        <select name="status">
+            <option value="">All Statuses</option>
+            <option value="new" {% if filters.status == 'new' %}selected{% endif %}>New</option>
+            <option value="reviewed" {% if filters.status == 'reviewed' %}selected{% endif %}>Reviewed</option>
+            <option value="shortlisted" {% if filters.status == 'shortlisted' %}selected{% endif %}>Shortlisted</option>
+            <option value="passed" {% if filters.status == 'passed' %}selected{% endif %}>Passed</option>
+            <option value="dead" {% if filters.status == 'dead' %}selected{% endif %}>Dead</option>
+        </select>
+        <select name="min_score">
+            <option value="">Any Score</option>
+            <option value="4" {% if filters.min_score == 4 %}selected{% endif %}>4+ (Strong)</option>
+            <option value="3" {% if filters.min_score == 3 %}selected{% endif %}>3+ (Decent)</option>
+            <option value="1" {% if filters.min_score == 1 %}selected{% endif %}>1+ (Scored)</option>
+        </select>
+        <button type="submit">Filter</button>
+        <a href="/"><button type="button" class="reset">Reset</button></a>
+    </form>
+
+    <!-- Listings Table -->
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:30px;"></th>
+                    <th>Listing</th>
+                    <th>Region</th>
+                    <th style="text-align:right;">Price</th>
+                    <th style="text-align:center;">Units</th>
+                    <th style="text-align:center;">Cap Rate</th>
+                    <th style="text-align:center;">Score</th>
+                    <th>Status</th>
+                    <th>Found</th>
+                    <th style="width:180px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in listings %}
+                <tr>
+                    <td>
+                        <form method="post" action="/listings/{{ l.id }}/flag" style="display:inline;">
+                            <button type="submit" class="flag-btn {{ 'flagged' if l.flagged else '' }}">
+                                {{ '🚩' if l.flagged else '⚐' }}
+                            </button>
+                        </form>
+                    </td>
+                    <td>
+                        <a href="{{ l.source_url or '#' }}" target="_blank" class="listing-title">{{ l.title[:80] }}</a>
+                        <div class="listing-source">{{ l.source_label or l.source }}</div>
+                        {% if l.address %}<div class="listing-source">📍 {{ l.address }}</div>{% endif %}
+                    </td>
+                    <td>
+                        <span class="region-tag">
+                            {{ 'Edmonton' if 'edmonton' in l.region else 'Montreal' if 'montreal' in l.region else l.region }}
+                        </span>
+                    </td>
+                    <td style="text-align:right;">{{ '${:,.0f}'.format(l.asking_price) if l.asking_price else '—' }}</td>
+                    <td style="text-align:center;">{{ l.num_units if l.num_units else '—' }}</td>
+                    <td style="text-align:center;">{{ '{:.1f}%'.format(l.listed_cap_rate) if l.listed_cap_rate else '—' }}</td>
+                    <td style="text-align:center;">
+                        {% if l.tier1_score is not none %}
+                        <div class="score-detail">
+                            <span class="score-pill {{ 'score-high' if l.tier1_score >= 4 else 'score-mid' if l.tier1_score >= 2 else 'score-low' }}">
+                                {{ l.tier1_score }}/7
+                            </span>
+                            {% if l._details_parsed %}
+                            <div class="tooltip">
+                                {% for key, check in l._details_parsed.items() %}
+                                <div class="{{ 'check-pass' if check.passed == true else 'check-fail' if check.passed == false else 'check-na' }}">
+                                    {{ '✓' if check.passed == true else '✗' if check.passed == false else '—' }}
+                                    {{ check.label }}: {{ check.value }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <span class="score-pill score-na">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ l.status }}">{{ l.status }}</span>
+                    </td>
+                    <td style="font-size:12px;color:var(--muted);">
+                        {{ l.discovered_at.strftime('%b %d, %H:%M') }}
+                    </td>
+                    <td>
+                        <form method="post" action="/listings/{{ l.id }}/status" class="actions-cell">
+                            <select name="status">
+                                <option value="reviewed" {{ 'selected' if l.status == 'reviewed' else '' }}>Reviewed</option>
+                                <option value="shortlisted" {{ 'selected' if l.status == 'shortlisted' else '' }}>Shortlist</option>
+                                <option value="passed" {{ 'selected' if l.status == 'passed' else '' }}>Pass</option>
+                                <option value="dead" {{ 'selected' if l.status == 'dead' else '' }}>Dead</option>
+                            </select>
+                            <button type="submit">Set</button>
+                        </form>
+                        <a href="/analyst/new?listing_id={{ l.id }}" style="font-size:11px;color:var(--bbg-blue);text-decoration:none;display:block;margin-top:4px;">Analyze →</a>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% if not listings %}
+                <tr>
+                    <td colspan="10" style="text-align:center;padding:40px;color:var(--muted);">
+                        No listings match your filters. Try broadening your search.
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if listings|length >= per_page %}
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="?page={{ page - 1 }}&region={{ filters.region or '' }}&status={{ filters.status or '' }}">← Prev</a>
+        {% endif %}
+        <a class="active">Page {{ page }}</a>
+        <a href="?page={{ page + 1 }}&region={{ filters.region or '' }}&status={{ filters.status or '' }}">Next →</a>
+    </div>
+    {% endif %}
+
+    <!-- Recent Scan Logs -->
+    <div class="scan-log">
+        <h3>Recent Scans</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Found</th>
+                    <th>New</th>
+                    <th>Dupes</th>
+                    <th>Errors</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in scan_logs %}
+                <tr>
+                    <td>{{ log.started_at.strftime('%b %d, %H:%M') }}</td>
+                    <td><span class="badge badge-{{ 'new' if log.status == 'completed' else 'dead' }}">{{ log.status }}</span></td>
+                    <td>{{ log.total_found }}</td>
+                    <td>{{ log.new_listings }}</td>
+                    <td>{{ log.duplicates_skipped }}</td>
+                    <td>{{ log.errors }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
