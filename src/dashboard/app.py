@@ -66,7 +66,6 @@ async def debug_info():
         "env_db_path": os.environ.get("BBG_DB_PATH"),
         "env_admin_pw_set": bool(os.environ.get("BBG_ADMIN_PASSWORD")),
     }
-    # Test template load
     try:
         t = templates.get_template("login.html")
         info["template_load_test"] = "OK: " + t.name
@@ -77,14 +76,7 @@ async def debug_info():
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    try:
-        return templates.TemplateResponse("login.html", {"request": request, "error": None})
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        logger.error(f"login_page error: {tb}")
-        from fastapi.responses import PlainTextResponse
-        return PlainTextResponse(f"LOGIN ERROR:\n{tb}", status_code=500)
+    return templates.TemplateResponse(request, "login.html", {"error": None})
 
 
 @app.post("/login")
@@ -96,7 +88,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
         request.session["user"] = username
         return RedirectResponse(url="/", status_code=303)
     return templates.TemplateResponse(
-        "login.html", {"request": request, "error": "Invalid credentials"}
+        request, "login.html", {"error": "Invalid credentials"}
     )
 
 
@@ -136,8 +128,7 @@ async def dashboard(
     stats = get_stats()
     scan_logs = get_scan_logs(limit=5)
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", {
         "user": user,
         "listings": listings,
         "stats": stats,
@@ -191,8 +182,7 @@ async def sources_page(request: Request, user: str = Depends(get_current_user)):
     init_source_tables()
     sources = get_all_sources()
     performance = get_source_performance()
-    return templates.TemplateResponse("sources.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "sources.html", {
         "user": user,
         "sources": sources,
         "performance": performance,
@@ -247,8 +237,7 @@ async def history_page(
     from ..sources import get_search_history, init_source_tables
     init_source_tables()
     history = get_search_history(limit=200, source_type=source_type)
-    return templates.TemplateResponse("history.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "history.html", {
         "user": user,
         "history": history,
         "filter_type": source_type,
@@ -286,8 +275,7 @@ async def search_listings(
             else:
                 l._details_parsed = {}
 
-    return templates.TemplateResponse("search.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "search.html", {
         "user": user,
         "query": q,
         "results": results,
@@ -324,8 +312,8 @@ async def analyst_list(request: Request, user: str = Depends(get_current_user)):
     from ..analyst.storage import init_analyst_tables, get_analyses
     init_analyst_tables()
     analyses = get_analyses(limit=50)
-    return templates.TemplateResponse("analyst_list.html", {
-        "request": request, "user": user, "analyses": analyses,
+    return templates.TemplateResponse(request, "analyst_list.html", {
+        "user": user, "analyses": analyses,
     })
 
 
@@ -351,8 +339,8 @@ async def analyst_new(
         except Listing.DoesNotExist:
             pass
 
-    return templates.TemplateResponse("analyst_form.html", {
-        "request": request, "user": user, "prefill": prefill,
+    return templates.TemplateResponse(request, "analyst_form.html", {
+        "user": user, "prefill": prefill,
     })
 
 
@@ -462,8 +450,8 @@ async def analyst_view(
     output_data = json.loads(record.output_json) if record.output_json else {}
     input_data = json.loads(record.input_json) if record.input_json else {}
 
-    return templates.TemplateResponse("analyst_view.html", {
-        "request": request, "user": user, "record": record,
+    return templates.TemplateResponse(request, "analyst_view.html", {
+        "user": user, "record": record,
         "output": output_data, "input": input_data,
     })
 
