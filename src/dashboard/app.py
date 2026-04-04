@@ -77,7 +77,14 @@ async def debug_info():
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    try:
+        return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        logger.error(f"login_page error: {tb}")
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse(f"LOGIN ERROR:\n{tb}", status_code=500)
 
 
 @app.post("/login")
