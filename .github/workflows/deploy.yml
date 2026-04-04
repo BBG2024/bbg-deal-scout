@@ -17,14 +17,14 @@ jobs:
 
       - name: Create Fly.io app (if not exists)
         run: |
-          flyctl apps list | grep bbg-deal-scout || \
-          flyctl apps create bbg-deal-scout --org blue-bear-groupgroup-ca
+          flyctl apps list 2>/dev/null | grep -q bbg-deal-scout && echo "App exists" || \
+          flyctl apps create bbg-deal-scout
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       - name: Create persistent volume (if not exists)
         run: |
-          flyctl volumes list --app bbg-deal-scout | grep bbg_data || \
+          flyctl volumes list --app bbg-deal-scout 2>/dev/null | grep -q bbg_data && echo "Volume exists" || \
           flyctl volumes create bbg_data --app bbg-deal-scout --region yyz --size 1 --yes
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
