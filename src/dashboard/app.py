@@ -34,10 +34,45 @@ def get_current_user(request: Request):
     return user
 
 
+_startup_error: str = None
+
+
 @app.on_event("startup")
 async def startup():
-    cfg = get_config()
-    init_db(cfg.get("general", {}).get("database_path", "data/deal_scout.db"))
+    global _startup_error
+    try:
+        cfg = get_config()
+        init_db(cfg.get("general", {}).get("database_path", "data/deal_scout.db"))
+    except Exception as e:
+        import traceback
+        _startup_error = traceback.format_exc()
+        logger.error(f"Startup error: {_startup_error}")
+
+
+@app.get("/debug")
+async def debug_info():
+    """Diagnostic endpoint — shows container state."""
+    import os, sys
+    info = {
+        "templates_dir": str(templates_dir),
+        "templates_dir_exists": templates_dir.exists(),
+        "login_html_exists": (templates_dir / "login.html").exists(),
+        "template_files": os.listdir(str(templates_dir)) if templates_dir.exists() else [],
+        "config_yaml_exists": Path("/app/config.yaml").exists(),
+        "cwd": os.getcwd(),
+        "file": __file__,
+        "sys_path_0": sys.path[0] if sys.path else None,
+        "startup_error": _startup_error,
+        "env_db_path": os.environ.get("BBG_DB_PATH"),
+        "env_admin_pw_set": bool(os.environ.get("BBG_ADMIN_PASSWORD")),
+    }
+    # Test template load
+    try:
+        t = templates.get_template("login.html")
+        info["template_load_test"] = "OK: " + t.name
+    except Exception as e:
+        info["template_load_test"] = "ERROR: " + str(e)
+    return info
 
 
 @app.get("/login", response_class=HTMLResponse)
