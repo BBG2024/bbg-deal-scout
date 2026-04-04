@@ -20,7 +20,10 @@ from ..config import get_config
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="BBG Deal Scout", docs_url=None, redoc_url=None)
-app.add_middleware(SessionMiddleware, secret_key=secrets.token_hex(32))
+
+import os as _os
+_SESSION_KEY = _os.environ.get("BBG_SESSION_SECRET", "bbg-deal-scout-session-key-2026-toronto")
+app.add_middleware(SessionMiddleware, secret_key=_SESSION_KEY)
 
 templates_dir = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(templates_dir))
