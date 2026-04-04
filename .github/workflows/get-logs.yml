@@ -9,11 +9,54 @@ jobs:
     steps:
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Fetch last 200 log lines
+      - name: Diagnose app internals
         run: |
           echo "=== FLY STATUS ==="
-          flyctl status --app bbg-deal-scout
-          echo "=== FLY LOGS ==="
-          flyctl logs --app bbg-deal-scout -n 200 2>&1 || true
+          flyctl status --app bbg-deal-scout || true
+
+          echo "=== TEMPLATES DIR ==="
+          flyctl machine exec --app bbg-deal-scout "ls -la /app/src/dashboard/templates/" || true
+
+          echo "=== PYTHON PATHS ==="
+          flyctl machine exec --app bbg-deal-scout "python3 -c \"
+from pathlib import Path
+import sys
+sys.path.insert(0, '/app')
+from src.dashboard.app import templates_dir
+print('templates_dir:', templates_dir)
+import os
+print('templates exists:', os.path.exists(str(templates_dir)))
+print('login exists:', os.path.exists(str(templates_dir / 'login.html')))
+print('files:', os.listdir(str(templates_dir)) if os.path.exists(str(templates_dir)) else 'NOT FOUND')
+\"" || true
+
+          echo "=== CONFIG CHECK ==="
+          flyctl machine exec --app bbg-deal-scout "python3 -c \"
+from pathlib import Path
+p = Path('/app/config.yaml')
+print('config.yaml exists:', p.exists())
+if p.exists():
+    import yaml
+    cfg = yaml.safe_load(p.read_text())
+    print('dashboard users:', list(cfg.get('dashboard', {}).get('users', {}).keys()))
+\"" || true
+
+          echo "=== APP STARTUP TEST ==="
+          flyctl machine exec --app bbg-deal-scout "python3 -c \"
+import sys
+sys.path.insert(0, '/app')
+import os
+os.chdir('/app')
+try:
+    from src.dashboard.app import app, templates
+    t = templates.get_template('login.html')
+    print('OK: login.html template loads fine, name:', t.name)
+except Exception as e:
+    import traceback
+    print('ERROR:', traceback.format_exc())
+\"" || true
+
+          echo "=== RECENT LOGS ==="
+          timeout 15 flyctl logs --app bbg-deal-scout 2>&1 || true
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
