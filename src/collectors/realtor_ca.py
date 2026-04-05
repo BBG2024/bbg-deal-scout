@@ -73,6 +73,29 @@ class RealtorCaCollector(BaseCollector):
         super().__init__(config, filters)
         self.records_per_page = 50  # Max per request
         self.max_pages = 3          # Up to 150 listings per region per scan
+        self._session = None        # Shared requests session with cookies
+
+    def _get_session(self) -> requests.Session:
+        """Return a requests session pre-warmed with realtor.ca cookies.
+
+        realtor.ca's API requires a valid browser session (cookies set by
+        visiting the homepage) — raw POST without cookies gets 403.
+        """
+        if self._session is not None:
+            return self._session
+
+        session = requests.Session()
+        session.headers.update(_HEADERS)
+        try:
+            # Visit the homepage to obtain session cookies
+            r = session.get("https://www.realtor.ca/", timeout=15)
+            r.raise_for_status()
+            logger.debug(f"Realtor.ca session established — cookies: {list(session.cookies.keys())}")
+        except Exception as e:
+            logger.warning(f"Could not establish realtor.ca session: {e}")
+
+        self._session = session
+        return session
 
     def collect(self, region_key: str, region_config: dict) -> List[Dict]:
         """Fetch multifamily listings for this region via the realtor.ca API."""
@@ -135,8 +158,9 @@ class RealtorCaCollector(BaseCollector):
             "lang": "en-CA",
         }
 
-        resp = requests.post(
-            SEARCH_URL, data=payload, headers=_HEADERS, timeout=20
+        session = self._get_session()
+        resp = session.post(
+            SEARCH_URL, data=payload, timeout=20
         )
         resp.raise_for_status()
         data = resp.json()

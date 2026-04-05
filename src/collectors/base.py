@@ -134,7 +134,7 @@ class BaseCollector(ABC):
             if "realtor.ca" in url.lower():
                 listing = self._enrich_realtor_ca(listing, url, html)
             elif "centris.ca" in url.lower():
-                listing = self._enrich_centris(listing, html)
+                listing = self._enrich_centris(listing, html, url)
 
             # 2. JSON-LD
             listing = self._enrich_from_jsonld(listing, html)
@@ -291,31 +291,97 @@ class BaseCollector(ABC):
 
         return listing
 
-    def _enrich_centris(self, listing: dict, html: str) -> dict:
-        """Extract centris.ca-specific structured data from the page."""
+    def _enrich_centris(self, listing: dict, html: str, url: str = "") -> dict:
+        """Extract centris.ca-specific structured data from the page and URL."""
         try:
+            # --- 1. Extract units from the URL type segment ---
+            # centris.ca URL pattern: /en/<type>~for-sale~<city>/<id>
+            # e.g. /en/5plex~for-sale~montreal-nord/23290908
+            if url and not listing.get("num_units"):
+                url_units = self._centris_units_from_url(url)
+                if url_units:
+                    listing["num_units"] = url_units
+
+            # --- 2. Extract asset type from URL type ---
+            if url and not listing.get("asset_type"):
+                listing["asset_type"] = self._centris_type_from_url(url)
+
+            # --- 3. Parse HTML (partially rendered static content) ---
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(html, "lxml")
 
-            # Centris embeds price in a specific element
-            price_el = soup.select_one("[itemprop='price'], .property-price, .asking-price, #ListingPrice")
-            if price_el and not listing.get("asking_price"):
-                price = self._parse_price_str(price_el.get_text())
-                if price:
-                    listing["asking_price"] = price
+            # Price in microdata or known class names
+            for sel in ["[itemprop='price']", ".property-price", ".asking-price",
+                        "#ListingPrice", "[class*='price']", "[class*='Prix']"]:
+                price_el = soup.select_one(sel)
+                if price_el and not listing.get("asking_price"):
+                    price = self._parse_price_str(price_el.get_text())
+                    if price and price > 10000:
+                        listing["asking_price"] = price
+                        break
 
-            # Units often in a spec table
-            for el in soup.select("[class*='carac'], [class*='spec'], [class*='detail']"):
+            # Units from spec/carac tables
+            for el in soup.select("[class*='carac'], [class*='spec'], [class*='detail'], [class*='logements']"):
                 text = el.get_text(" ", strip=True)
                 if not listing.get("num_units"):
                     units = self.extract_units(text)
                     if units:
                         listing["num_units"] = units
 
+            # Address from breadcrumb or h1
+            if not listing.get("address"):
+                for sel in ["h1", ".property-address", "[itemprop='streetAddress']",
+                            "[class*='address']", "[class*='adresse']"]:
+                    el = soup.select_one(sel)
+                    if el:
+                        addr = el.get_text(strip=True)
+                        if len(addr) > 5 and len(addr) < 200:
+                            listing["address"] = addr
+                            break
+
         except Exception as e:
             logger.debug(f"Centris enrichment failed: {e}")
 
         return listing
+
+    @staticmethod
+    def _centris_units_from_url(url: str) -> int | None:
+        """Parse unit count from centris.ca URL type segment."""
+        # e.g. /en/5plex~  /en/6-plex~  /en/multi-family-properties~
+        m = re.search(r"/en/(\d+)(?:plex|[-_]plex)~", url, re.I)
+        if m:
+            try:
+                n = int(m.group(1))
+                if 2 <= n <= 100:
+                    return n
+            except (ValueError, TypeError):
+                pass
+
+        # Named plex types
+        url_lower = url.lower()
+        named = {
+            "duplex": 2, "triplex": 3, "quadruplex": 4, "cinqplex": 5,
+            "fiveplex": 5, "sixplex": 6, "sevenplex": 7,
+        }
+        for word, count in named.items():
+            if f"/{word}~" in url_lower or f"/{word}-" in url_lower:
+                return count
+
+        return None
+
+    @staticmethod
+    def _centris_type_from_url(url: str) -> str | None:
+        """Infer asset type from centris.ca URL type segment."""
+        url_lower = url.lower()
+        if "multi-family" in url_lower or "multi-logements" in url_lower:
+            return "Multi-Family"
+        if "apartment" in url_lower or "appartement" in url_lower:
+            return "Apartment Building"
+        if "commercial" in url_lower:
+            return "Mixed-Use"
+        if "plex" in url_lower:
+            return "Multi-Family"
+        return None
 
     # ------------------------------------------------------------------
     # Generic extractors
