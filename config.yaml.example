@@ -24,25 +24,30 @@ regions:
       - "multi-family for sale Leduc Alberta"
       - "apartment investment property Fort Saskatchewan"
     rss_feeds:
-      # Point2Homes has RSS for commercial listings — reliable static source
-      - "https://www.point2homes.com/CA/Commercial-Real-Estate-Listings/AB/Edmonton/Apartment-Buildings-For-Sale.rss"
-      # Kijiji Edmonton — real estate for sale (multi-unit residential)
-      - "https://www.kijiji.ca/rss-srp-real-estate.html?locationId=1700193&categoryId=43&adType=OFFER"
+      # Kijiji Edmonton — keyword search for income/investment property (RSS)
+      # Category 35 = Houses for Sale, locationId 1700193 = Edmonton
+      - "https://www.kijiji.ca/rss-srp-realestate.html?locationId=1700193&categoryId=35&q=apartment+building&adType=OFFER&sortByName=dateDesc"
+      # Zolo.ca Edmonton investment properties RSS
+      - "https://www.zolo.ca/edmonton-real-estate/income-properties.rss"
     watch_urls:
-      # ICX.ca (InvestorsCX) — investment-focused, static HTML listings
-      - url: "https://www.icx.ca/properties/multi-family/alberta/edmonton/"
-        label: "ICX Edmonton Multifamily"
-      - url: "https://www.icx.ca/properties/multi-family/alberta/st-albert/"
-        label: "ICX St. Albert Multifamily"
-      # Point2Homes — residential investment, semi-static HTML
-      - url: "https://www.point2homes.com/CA/Commercial-Real-Estate-Listings/AB/Edmonton/Apartment-Buildings-For-Sale.html"
-        label: "Point2Homes Edmonton Apartments"
+      # Zolo.ca — SEO-heavy static HTML, indexes Edmonton investment properties
+      - url: "https://www.zolo.ca/edmonton-real-estate/income-properties"
+        label: "Zolo Edmonton Income Properties"
+      # CommercialX.ca (CREA) — Canadian commercial MLS, static HTML
+      - url: "https://www.commercialx.ca/en/property-list/?ProvinceCode=AB&CityList=Edmonton&PropertyType=Multi%20Unit%20Residential"
+        label: "CommercialX Edmonton Multi-Unit"
+      # Royal LePage Edmonton commercial — broker static page
+      - url: "https://www.royallepage.ca/en/realestate/alberta/edmonton/apartment-buildings/"
+        label: "Royal LePage Edmonton Apartments"
+      # Century 21 Edmonton multi-family
+      - url: "https://www.century21.ca/en/search/#q=apartment%20building&pt=11&tr=2&province=Alberta&city=Edmonton"
+        label: "Century21 Edmonton Multifamily"
       # NAI Commercial Alberta — broker static listing page
       - url: "https://www.naicommercial.ca/properties/for-sale/?property_type=multi-residential&province=alberta"
         label: "NAI Commercial Alberta Multi-Res"
-      # Realtor.ca map view (fallback — JS-rendered, but RealtorCaCollector handles API directly)
-      - url: "https://www.realtor.ca/map#ZoomLevel=10&Center=53.544389%2C-113.490927&LatitudeMax=53.74&LongitudeMax=-113.10&LatitudeMin=53.35&LongitudeMin=-113.88&Sort=6-D&PGeoIds=g30_dpg6dr80&GeoName=Edmonton%2C%20AB&PropertyTypeGroupID=5&TransactionTypeId=2&BuildingTypeId=17&Currency=CAD"
-        label: "Realtor.ca Edmonton Multifamily"
+      # Point2Homes — residential investment, semi-static HTML
+      - url: "https://www.point2homes.com/CA/Commercial-Real-Estate-Listings/AB/Edmonton/Apartment-Buildings-For-Sale.html"
+        label: "Point2Homes Edmonton Apartments"
 
   greater_montreal:
     label: "Greater Montreal"
