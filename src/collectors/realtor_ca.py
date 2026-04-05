@@ -129,6 +129,18 @@ class RealtorCaCollector(BaseCollector):
                 if len(results) < self.records_per_page:
                     break  # Last page
 
+            except requests.HTTPError as e:
+                if e.response is not None and e.response.status_code == 403:
+                    # 403 = bot detection / session issue. Log at info, not error.
+                    # Don't keep retrying — realtor.ca needs JS cookies we can't get server-side.
+                    logger.info(
+                        f"Realtor.ca API blocked (403) for {region_key} — "
+                        f"their bot detection requires browser cookies. Skipping."
+                    )
+                else:
+                    logger.error(f"Realtor.ca HTTP error for {region_key} page {page}: {e}")
+                    self.errors.append(f"RealtorCA/{region_key}/p{page}: {str(e)}")
+                break
             except Exception as e:
                 logger.error(f"Realtor.ca search failed for {region_key} page {page}: {e}")
                 self.errors.append(f"RealtorCA/{region_key}/p{page}: {str(e)}")
