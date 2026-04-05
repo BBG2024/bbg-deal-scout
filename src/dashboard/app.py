@@ -178,15 +178,18 @@ async def dashboard(
     request: Request,
     region: str = None,
     status: str = None,
-    min_score: int = None,
+    min_score: str = None,   # Accept as str — empty string from dropdown causes int parse error
     page: int = 1,
     user: str = Depends(get_current_user),
 ):
     per_page = 25
     offset = (page - 1) * per_page
 
+    # Convert min_score to int (dropdown sends empty string when "Any Score" selected)
+    score_filter = int(min_score) if min_score and min_score.strip().lstrip("-").isdigit() else None
+
     listings = get_listings(
-        region=region, status=status, min_score=min_score,
+        region=region, status=status, min_score=score_filter,
         limit=per_page, offset=offset,
     )
 
@@ -208,7 +211,7 @@ async def dashboard(
         "listings": listings,
         "stats": stats,
         "scan_logs": scan_logs,
-        "filters": {"region": region, "status": status, "min_score": min_score},
+        "filters": {"region": region, "status": status, "min_score": score_filter},
         "page": page,
         "per_page": per_page,
     })
@@ -235,6 +238,35 @@ async def update_status(
         raise HTTPException(status_code=404, detail="Listing not found")
 
     return RedirectResponse(url="/", status_code=303)
+
+
+@app.post("/admin/purge-junk")
+async def purge_junk_listings(user: str = Depends(get_current_user)):
+    """Remove clearly invalid listings (category pages, no financial data, suspicious URLs)."""
+    # Patterns that identify category pages and non-property URLs
+    junk_patterns = [
+        # Category/nav pages — URL ends at domain level with no property ID
+        "pmml.ca/proprietes",
+        "pmml.ca/proprietes/",
+        "/proprietes/hotel",
+        "/proprietes/commerce",
+        "/proprietes/construction",
+        "/proprietes/residences",
+        "/proprietes/semi-commercial",
+        "/proprietes/multi-logements",
+        "/proprietes/fond-de-commerce",
+        "/proprietes/immeuble",
+    ]
+
+    deleted = 0
+    for listing in Listing.select():
+        url = listing.source_url or ""
+        if any(pat in url for pat in junk_patterns):
+            listing.delete_instance()
+            deleted += 1
+
+    logger.info(f"Admin purge: removed {deleted} junk listings")
+    return JSONResponse({"purged": deleted, "message": f"Removed {deleted} junk listings"})
 
 
 @app.post("/listings/{listing_id}/flag")

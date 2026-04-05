@@ -24,6 +24,7 @@ from .collectors.rss_monitor import RSSCollector
 from .collectors.url_watcher import URLWatcherCollector
 from .collectors.email_parser import EmailAlertCollector
 from .collectors.folder_watcher import FolderWatcherCollector
+from .collectors.realtor_ca import RealtorCaCollector
 from .notifications.email_digest import send_email_digest
 from .notifications.slack_notify import send_slack_notification
 from .onedrive_sync import sync_to_onedrive
@@ -41,6 +42,7 @@ class DealScanner:
 
         # Initialize collectors
         self.collectors = [
+            RealtorCaCollector(self.config, self.filters),   # Direct API — most reliable
             BingSearchCollector(self.config, self.filters),
             RSSCollector(self.config, self.filters),
             URLWatcherCollector(self.config, self.filters),

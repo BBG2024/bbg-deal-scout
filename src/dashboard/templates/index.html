@@ -279,8 +279,16 @@
                         </form>
                     </td>
                     <td>
+                        {% if l.source == 'folder_watch' %}
+                        <a href="#" class="listing-title" title="{{ l.source_label }}">{{ l.title[:80] }}</a>
+                        <div class="listing-source">
+                            <span style="background:#D71920;color:#fff;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:700;margin-right:4px;">📄 PDF/File</span>
+                            {{ l.source_label or l.source }}
+                        </div>
+                        {% else %}
                         <a href="{{ l.source_url or '#' }}" target="_blank" class="listing-title">{{ l.title[:80] }}</a>
                         <div class="listing-source">{{ l.source_label or l.source }}</div>
+                        {% endif %}
                         {% if l.address %}<div class="listing-source">📍 {{ l.address }}</div>{% endif %}
                     </td>
                     <td>
