@@ -38,6 +38,38 @@ class RSSCollector(BaseCollector):
         logger.info(f"RSS feeds for {region_key}: {len(feeds)} feeds → {len(listings)} items")
         return listings
 
+    def _pre_filter_rss(self, listing: dict, combined_text: str) -> bool:
+        """Fast pre-filter on RSS snippet data before fetching the full listing page.
+
+        Rejects obvious non-qualifiers without making an HTTP request.
+        Returns True if the listing should be enriched (fetched), False to skip.
+        """
+        from .base import SMALL_PROPERTY_KEYWORDS
+
+        # Hard reject if title/URL/snippet contains small-property keywords
+        url = (listing.get("source_url") or "").lower()
+        text = combined_text.lower()
+
+        for kw in SMALL_PROPERTY_KEYWORDS:
+            if kw in text or kw in url:
+                logger.debug(f"RSS pre-filter rejected ('{kw}'): {listing.get('title','')[:60]}")
+                return False
+
+        # Hard reject if price is extracted and below floor
+        price = listing.get("asking_price")
+        min_price = self.filters.get("min_price", 0)
+        if price and price < min_price:
+            return False
+
+        # Hard reject if unit count extracted and clearly out of range
+        units = listing.get("num_units")
+        min_units = self.filters.get("min_units", 5)
+        max_units = self.filters.get("max_units", 50)
+        if units is not None and (units < min_units or units > max_units):
+            return False
+
+        return True
+
     def _parse_feed(self, url: str, label: str, region_key: str) -> List[Dict]:
         """Parse a single RSS/Atom feed."""
         feed = feedparser.parse(url)
@@ -71,6 +103,14 @@ class RSSCollector(BaseCollector):
             detected = self.classify_region(combined)
             if detected:
                 listing["region"] = detected
+
+            # Pre-filter on RSS snippet data (fast reject before fetching page)
+            if not self._pre_filter_rss(listing, combined):
+                continue
+
+            # Fetch the actual listing page to populate full financial data
+            if link:
+                listing = self.enrich_from_url(listing)
 
             if self.passes_filters(listing):
                 listings.append(listing)
