@@ -81,7 +81,7 @@
                 <div class="grid">
                     <div class="form-group">
                         <label>Purchase Price ($)</label>
-                        <input type="number" name="purchase_price" value="{{ prefill.get('purchase_price', '') if prefill else '' }}" step="1000" placeholder="Enter purchase price">
+                        <input type="number" name="purchase_price" id="purchasePrice" value="{{ prefill.get('purchase_price', '') if prefill else '' }}" step="1000" placeholder="Enter purchase price" onchange="onPriceChange()">
                     </div>
                     <div class="form-group">
                         <label>Renovation Cost ($)</label>
@@ -98,26 +98,137 @@
                 </div>
             </div>
 
-            <!-- Financing -->
+            <!-- Financing — CMHC Program Selector -->
             <div class="section">
-                <h3>Financing</h3>
+                <h3>Financing — CMHC Program</h3>
+                <div class="info-box">
+                    Select a financing program below. LTV, rate, amortization, and insurance premium will auto-populate.
+                    Rates are approximate CMHC 2025 posted rates for multifamily (5+ units) — verify current rates before commitment.
+                    <strong>MLI Select requires energy efficiency, affordability, or accessibility criteria.</strong>
+                </div>
+
+                <style>
+                    .cmhc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+                    @media (max-width: 700px) { .cmhc-grid { grid-template-columns: 1fr 1fr; } }
+                    .cmhc-card { border: 2px solid var(--border); border-radius: 8px; padding: 12px; cursor: pointer; position: relative; transition: border-color 0.15s; background: #fff; }
+                    .cmhc-card:hover { border-color: var(--bbg-blue); }
+                    .cmhc-card.selected { border-color: var(--bbg-blue); background: #eef4fb; }
+                    .cmhc-card input[type=radio] { position: absolute; top: 10px; right: 10px; }
+                    .cmhc-card .prog-name { font-size: 12px; font-weight: 700; color: var(--bbg-blue); margin-bottom: 6px; }
+                    .cmhc-card .prog-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 10px; margin-bottom: 6px; font-weight: 600; }
+                    .badge-conv { background: #e2e8f0; color: #4a5568; }
+                    .badge-std { background: #ebf8ff; color: #2b6cb0; }
+                    .badge-mli { background: #f0fff4; color: #276749; }
+                    .cmhc-card .prog-stat { font-size: 11px; color: var(--muted); line-height: 1.7; }
+                    .cmhc-card .prog-stat strong { color: var(--text); }
+                    .cmhc-divider { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 10px 0 6px; }
+                </style>
+
+                <p class="cmhc-divider">Standard CMHC (40-year amortization)</p>
+                <div class="cmhc-grid" id="cmhcCards">
+
+                    <div class="cmhc-card" id="card_standard_35" onclick="selectCMHC('standard_35')">
+                        <input type="radio" name="_cmhc_program" value="standard_35">
+                        <div class="prog-name">CMHC Standard — 35% Down</div>
+                        <div class="prog-badge badge-std">40-Year Amort.</div>
+                        <div class="prog-stat">
+                            <strong>LTV:</strong> 65% &nbsp; <strong>Down:</strong> 35%<br>
+                            <strong>Rate:</strong> ~4.09% <span style="color:var(--green);font-size:10px;">(−75 bps vs. conv.)</span><br>
+                            <strong>Insurance:</strong> 1.50% of loan<br>
+                            <strong>Equity Required:</strong> Lower debt service
+                        </div>
+                    </div>
+
+                    <div class="cmhc-card selected" id="card_standard_25" onclick="selectCMHC('standard_25')">
+                        <input type="radio" name="_cmhc_program" value="standard_25" checked>
+                        <div class="prog-name">CMHC Standard — 25% Down ✓</div>
+                        <div class="prog-badge badge-std">40-Year Amort.</div>
+                        <div class="prog-stat">
+                            <strong>LTV:</strong> 75% &nbsp; <strong>Down:</strong> 25%<br>
+                            <strong>Rate:</strong> ~4.09% <span style="color:var(--green);font-size:10px;">(−75 bps vs. conv.)</span><br>
+                            <strong>Insurance:</strong> 2.40% of loan<br>
+                            <strong>Most common</strong> BBG structure
+                        </div>
+                    </div>
+
+                    <div class="cmhc-card" id="card_conventional" onclick="selectCMHC('conventional')">
+                        <input type="radio" name="_cmhc_program" value="conventional">
+                        <div class="prog-name">Conventional (No Insurance)</div>
+                        <div class="prog-badge badge-conv">25-Year Amort.</div>
+                        <div class="prog-stat">
+                            <strong>LTV:</strong> 75% &nbsp; <strong>Down:</strong> 25%<br>
+                            <strong>Rate:</strong> ~4.84% <span style="color:var(--muted);font-size:10px;">(market rate)</span><br>
+                            <strong>Insurance:</strong> None<br>
+                            Higher payment, max flexibility
+                        </div>
+                    </div>
+                </div>
+
+                <p class="cmhc-divider">MLI Select (50-year amortization — requires energy/affordability criteria)</p>
+                <div class="cmhc-grid">
+                    <div class="cmhc-card" id="card_mli_20" onclick="selectCMHC('mli_20')">
+                        <input type="radio" name="_cmhc_program" value="mli_20">
+                        <div class="prog-name">MLI Select — 20% Down</div>
+                        <div class="prog-badge badge-mli">50-Year Amort.</div>
+                        <div class="prog-stat">
+                            <strong>LTV:</strong> 80% &nbsp; <strong>Down:</strong> 20%<br>
+                            <strong>Rate:</strong> ~3.84% <span style="color:var(--green);font-size:10px;">(−100 bps vs. conv.)</span><br>
+                            <strong>Insurance:</strong> 3.60% of loan<br>
+                            Best DSCR via 50yr amort.
+                        </div>
+                    </div>
+
+                    <div class="cmhc-card" id="card_mli_15" onclick="selectCMHC('mli_15')">
+                        <input type="radio" name="_cmhc_program" value="mli_15">
+                        <div class="prog-name">MLI Select — 15% Down</div>
+                        <div class="prog-badge badge-mli">50-Year Amort.</div>
+                        <div class="prog-stat">
+                            <strong>LTV:</strong> 85% &nbsp; <strong>Down:</strong> 15%<br>
+                            <strong>Rate:</strong> ~3.84% <span style="color:var(--green);font-size:10px;">(−100 bps vs. conv.)</span><br>
+                            <strong>Insurance:</strong> 4.25% of loan<br>
+                            Lowest equity requirement
+                        </div>
+                    </div>
+
+                    <div class="cmhc-card" id="card_mli_10" onclick="selectCMHC('mli_10')">
+                        <input type="radio" name="_cmhc_program" value="mli_10">
+                        <div class="prog-name">MLI Select — 10% Down</div>
+                        <div class="prog-badge badge-mli">50-Year Amort.</div>
+                        <div class="prog-stat">
+                            <strong>LTV:</strong> 90% &nbsp; <strong>Down:</strong> 10%<br>
+                            <strong>Rate:</strong> ~3.84% <span style="color:var(--green);font-size:10px;">(−100 bps vs. conv.)</span><br>
+                            <strong>Insurance:</strong> 4.75% of loan<br>
+                            Maximum leverage option
+                        </div>
+                    </div>
+                </div>
+
+                <div style="font-size:11px;color:var(--muted);margin-bottom:14px;padding:8px;background:#fffbeb;border-radius:4px;border-left:3px solid #f59e0b;">
+                    ⚠ MLI Select is available at 10%, 15%, and 20% down. For 25%+ down, use CMHC Standard above.
+                    All CMHC programs require the property to be 5+ units and used for rental. Premium is rolled into the loan.
+                </div>
+
+                <!-- Auto-populated fields (editable override) -->
+                <p style="font-size:12px;font-weight:600;color:var(--bbg-blue);margin-bottom:8px;">Financing Parameters (auto-filled — override if needed)</p>
                 <div class="grid">
                     <div class="form-group">
                         <label>LTV (%)</label>
-                        <input type="number" name="ltv_pct" value="" step="5" min="0" max="95" placeholder="e.g. 60">
+                        <input type="number" name="ltv_pct" id="ltvField" value="75" step="1" min="0" max="95">
                     </div>
                     <div class="form-group">
                         <label>Interest Rate (%)</label>
-                        <input type="number" name="interest_rate" value="" step="0.25" placeholder="e.g. 4.25">
+                        <input type="number" name="interest_rate" id="rateField" value="4.09" step="0.01">
+                        <span class="hint">CMHC posted rate, approx. — verify with lender</span>
                     </div>
                     <div class="form-group">
                         <label>Amortization (months)</label>
-                        <input type="number" name="amort_months" value="" placeholder="e.g. 300 or 480">
-                        <span class="hint">480 = 40 yrs, 300 = 25 yrs, 600 = 50 yrs</span>
+                        <input type="number" name="amort_months" id="amortField" value="480">
+                        <span class="hint">480 = 40 yr | 600 = 50 yr | 300 = 25 yr</span>
                     </div>
                     <div class="form-group">
-                        <label>Mortgage Insurance ($)</label>
-                        <input type="number" name="mortgage_insurance" value="0" step="100">
+                        <label>CMHC Insurance Premium ($)</label>
+                        <input type="number" name="mortgage_insurance" id="insuranceField" value="0" step="100">
+                        <span class="hint">Auto-calculated from LTV × premium rate. Rolled into loan.</span>
                     </div>
                 </div>
             </div>
@@ -147,16 +258,8 @@
 
             <!-- Assumptions -->
             <div class="section">
-                <h3>Growth & Exit Assumptions</h3>
+                <h3>Operating Assumptions & Exit</h3>
                 <div class="grid">
-                    <div class="form-group">
-                        <label>Annual Rent Growth (%)</label>
-                        <input type="number" name="rent_growth" value="2.0" step="0.5">
-                    </div>
-                    <div class="form-group">
-                        <label>Annual Expense Growth (%)</label>
-                        <input type="number" name="expense_growth" value="2.0" step="0.5">
-                    </div>
                     <div class="form-group">
                         <label>Vacancy Rate (%)</label>
                         <input type="number" name="vacancy" value="3.0" step="0.5">
@@ -164,6 +267,7 @@
                     <div class="form-group">
                         <label>Other Monthly Income ($)</label>
                         <input type="number" name="other_income" value="0" step="50">
+                        <span class="hint">Parking, laundry, etc.</span>
                     </div>
                     <div class="form-group">
                         <label>Hold Period (months)</label>
@@ -181,25 +285,25 @@
                 </div>
             </div>
 
-            <!-- CCA / Tax -->
+            <!-- Growth Assumptions & Exit Strategy -->
             <div class="section">
-                <h3>Exit Strategy & Growth Assumptions</h3>
-                <div class="info-box">These growth rates flow through ALL calculations — sell and refinance scenarios at Year 5 and Year 10, cash flow projections, property valuation, and waterfall distributions. Adjust to match your market thesis.</div>
+                <h3>Growth Assumptions & Exit Strategy</h3>
+                <div class="info-box">These rates flow through ALL calculations: annual cash flows, Year 5 and Year 10 sell/refinance scenarios, property valuation, and waterfall distributions. BBG defaults: 3% rent | 2% expense | 5% appreciation.</div>
                 <div class="grid">
-                    <div class="form-group">
-                        <label>Annual Value Appreciation (%)</label>
-                        <input type="number" name="appreciation_pct" value="5.0" step="0.5">
-                        <span class="hint">Property value growth (default 5%)</span>
-                    </div>
                     <div class="form-group">
                         <label>Annual Rent Increase (%)</label>
                         <input type="number" name="rent_growth" value="3.0" step="0.5">
-                        <span class="hint">Rental income growth (default 3%)</span>
+                        <span class="hint">Applied to all cash flows + exit projections</span>
                     </div>
                     <div class="form-group">
                         <label>Annual Expense Increase (%)</label>
                         <input type="number" name="expense_growth" value="2.0" step="0.5">
-                        <span class="hint">Operating cost growth (default 2%)</span>
+                        <span class="hint">Applied from Year 1 onward</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Annual Value Appreciation (%)</label>
+                        <input type="number" name="appreciation_pct" value="5.0" step="0.5">
+                        <span class="hint">Exit value and refinance appraisal</span>
                     </div>
                 </div>
                 <p style="font-size:12px;color:var(--muted);margin-top:8px;font-weight:600;">Refinance Assumptions (for Year 5 and Year 10 refi scenarios)</p>
@@ -274,6 +378,7 @@
     </div>
 
     <script>
+        /* ── Unit inputs ────────────────────────────────────── */
         function updateUnitInputs() {
             const n = parseInt(document.getElementById('numUnits').value) || 5;
             const container = document.getElementById('unitInputs');
@@ -284,6 +389,54 @@
             container.innerHTML = html;
         }
         updateUnitInputs();
+
+        /* ── CMHC Financing Selector ─────────────────────────
+           ltv_pct, interest_rate, amort_months, mortgage_insurance
+           are auto-filled when user clicks a program card.
+           Insurance = base_loan × premium_pct.
+           Base loan = purchase_price × ltv / 100.
+        ────────────────────────────────────────────────────── */
+        const CMHC_PROGRAMS = {
+            standard_35: { ltv: 65, rate: 4.09, amort: 480, insurancePct: 1.50 },
+            standard_25: { ltv: 75, rate: 4.09, amort: 480, insurancePct: 2.40 },
+            conventional: { ltv: 75, rate: 4.84, amort: 300, insurancePct: 0   },
+            mli_20:       { ltv: 80, rate: 3.84, amort: 600, insurancePct: 3.60 },
+            mli_15:       { ltv: 85, rate: 3.84, amort: 600, insurancePct: 4.25 },
+            mli_10:       { ltv: 90, rate: 3.84, amort: 600, insurancePct: 4.75 },
+        };
+
+        function selectCMHC(key) {
+            const prog = CMHC_PROGRAMS[key];
+            if (!prog) return;
+
+            const price = parseFloat(document.getElementById('purchasePrice').value) || 0;
+            const baseLoan = price * (prog.ltv / 100);
+            const insurance = Math.round(baseLoan * (prog.insurancePct / 100));
+
+            document.getElementById('ltvField').value      = prog.ltv;
+            document.getElementById('rateField').value     = prog.rate.toFixed(2);
+            document.getElementById('amortField').value    = prog.amort;
+            document.getElementById('insuranceField').value = insurance;
+
+            // Highlight selected card
+            document.querySelectorAll('.cmhc-card').forEach(c => c.classList.remove('selected'));
+            const card = document.getElementById('card_' + key);
+            if (card) card.classList.add('selected');
+        }
+
+        // Re-calculate insurance when purchase price changes
+        function onPriceChange() {
+            const selected = document.querySelector('input[name="_cmhc_program"]:checked');
+            if (selected) selectCMHC(selected.value);
+        }
+
+        // Wire up purchase price field
+        document.addEventListener('DOMContentLoaded', function() {
+            const pp = document.getElementById('purchasePrice');
+            if (pp) pp.addEventListener('input', onPriceChange);
+            // Pre-fill with default selection (standard_25)
+            selectCMHC('standard_25');
+        });
     </script>
 </body>
 </html>

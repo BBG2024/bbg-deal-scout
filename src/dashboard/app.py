@@ -545,6 +545,10 @@ async def analyst_run(request: Request, user: str = Depends(get_current_user)):
     deal._refi_amort_years = _i("refi_amort_years", 25)
     deal._refi_costs_pct = _f("refi_costs_pct", 1.5)
 
+    # CCA / tax inputs — form fields previously ignored by parser
+    deal._cca_class = _i("cca_class", 1)             # CRA class (1, 3, 6, or 8)
+    deal._tax_rate = _f("tax_rate", 50.0)             # Combined federal + provincial (%)
+
     # Parse units — all rents from user input, no defaults
     num_units = _i("num_units", 0)
     deal.units = []

@@ -84,13 +84,18 @@ def run_analysis(
     # --- Step 9: CCA Depreciation Schedule ---
     try:
         from .cca import CCAInput, compute_cca_schedule, compute_after_tax_returns
+        # User-supplied CCA class and tax rate (set by app.py from form);
+        # fall back to sensible defaults: Class 1, 50% combined marginal rate.
+        _cca_class = int(getattr(deal, '_cca_class', 1) or 1)
+        _tax_rate  = float(getattr(deal, '_tax_rate', 50.0) or 50.0)
         cca_input = CCAInput(
             purchase_price=deal.purchase_price,
             land_value=deal.land_value,
-            land_percent=20.0,  # Default 20% land allocation
+            land_percent=20.0,  # Default 20% when no explicit land value set
             renovation_cost=deal.renovation_cost,
+            cca_class=_cca_class,
             hold_years=len(output.annual_summaries),
-            marginal_tax_rate=50.0,  # Combined federal + provincial
+            marginal_tax_rate=_tax_rate,
             sale_price=output.sale_price,
         )
         cca_sched = compute_cca_schedule(cca_input)
@@ -132,7 +137,7 @@ def run_analysis(
             taxable_income.append(taxable)
 
         at_returns = compute_after_tax_returns(
-            pre_tax_cfs, cca_sched, taxable_income, marginal_tax_rate=50.0
+            pre_tax_cfs, cca_sched, taxable_income, marginal_tax_rate=_tax_rate
         )
         output.after_tax_returns = at_returns
 
