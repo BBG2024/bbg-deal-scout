@@ -118,8 +118,22 @@ def init_db(db_path: str = "data/deal_scout.db"):
 
 
 def generate_fingerprint(title: str, address: str = None, source_url: str = None) -> str:
-    """Generate a deduplication fingerprint for a listing."""
-    raw = f"{title or ''}|{address or ''}|{source_url or ''}"
+    """Generate a deduplication fingerprint for a listing.
+
+    Priority:
+    1. If source_url is available, use URL alone — it uniquely identifies the
+       property regardless of whether address/title was enriched later.
+       Strip query params and fragments so ?view=Thumbnail doesn't create dupes.
+    2. Fall back to title + address when no URL (e.g. folder-watch docs).
+    """
+    if source_url:
+        # Normalise URL: strip query string, fragment, trailing slash
+        from urllib.parse import urlparse, urlunparse
+        p = urlparse(source_url.lower().strip())
+        normalised = urlunparse((p.scheme, p.netloc, p.path.rstrip("/"), "", "", ""))
+        return hashlib.sha256(normalised.encode()).hexdigest()
+
+    raw = f"{title or ''}|{address or ''}"
     raw = raw.lower().strip()
     return hashlib.sha256(raw.encode()).hexdigest()
 

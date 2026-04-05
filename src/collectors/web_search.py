@@ -27,32 +27,119 @@ class BingSearchCollector(BaseCollector):
         self._query_count = 0
 
     def collect(self, region_key: str, region_config: dict) -> List[Dict]:
-        """Run search queries for a region and return parsed listings."""
-        if not self.api_key or self.api_key == "YOUR_BING_API_KEY":
-            logger.warning("Bing API key not configured — skipping web search")
-            return []
+        """Run search queries for a region and return parsed listings.
 
+        Uses Bing API when configured; falls back to DuckDuckGo HTML search
+        (no API key required) so Edmonton and other regions always have coverage.
+        """
         queries = region_config.get("search_queries", [])
         listings = []
 
-        for query in queries:
-            if self._query_count >= self.daily_limit:
-                logger.warning(f"Daily query limit ({self.daily_limit}) reached — stopping")
+        use_bing = bool(self.api_key and self.api_key != "YOUR_BING_API_KEY")
+        engine = "Bing" if use_bing else "DDG"
+
+        if not use_bing:
+            logger.info(
+                f"Bing API key not set — using DuckDuckGo HTML fallback for {region_key}"
+            )
+
+        # Limit DDG queries more conservatively to avoid rate limiting
+        query_limit = self.daily_limit if use_bing else min(self.daily_limit, 4)
+
+        for query in queries[:query_limit]:
+            if self._query_count >= query_limit:
                 break
 
             try:
-                results = self._search(query, region_key)
+                if use_bing:
+                    results = self._search(query, region_key)
+                else:
+                    results = self._search_ddg(query, region_key)
                 listings.extend(results)
                 self._query_count += 1
-                time.sleep(0.5)  # Rate limiting
+                time.sleep(1.0 if use_bing else 2.0)  # DDG needs more backoff
             except Exception as e:
-                logger.error(f"Bing search failed for '{query}': {e}")
-                self.errors.append(f"Bing: {query} — {str(e)}")
+                logger.error(f"{engine} search failed for '{query}': {e}")
+                self.errors.append(f"{engine}: {query} — {str(e)}")
 
         logger.info(
-            f"Bing search for {region_key}: "
-            f"{len(queries)} queries → {len(listings)} raw results"
+            f"{engine} search for {region_key}: "
+            f"{self._query_count} queries → {len(listings)} raw results"
         )
+        return listings
+
+    def _search_ddg(self, query: str, region_key: str) -> List[Dict]:
+        """Search via DuckDuckGo HTML endpoint — no API key required.
+
+        Uses html.duckduckgo.com/html which returns static HTML results
+        (no JavaScript rendering needed). Rate limit: ~1 req/2s.
+        """
+        from bs4 import BeautifulSoup
+
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-CA,en;q=0.9",
+        }
+        params = {"q": query, "kl": "ca-en", "kf": "-1"}  # Canada, no safe-search filter
+
+        try:
+            resp = requests.get(
+                "https://html.duckduckgo.com/html/",
+                params=params, headers=headers, timeout=15
+            )
+            resp.raise_for_status()
+        except Exception as e:
+            logger.warning(f"DDG request failed: {e}")
+            return []
+
+        soup = BeautifulSoup(resp.text, "lxml")
+        listings = []
+
+        for result in soup.select(".result, .web-result"):
+            title_el = result.select_one(".result__title a, .result__a")
+            snippet_el = result.select_one(".result__snippet")
+            if not title_el:
+                continue
+
+            title = title_el.get_text(strip=True)
+            url = title_el.get("href", "")
+            # DDG wraps URLs — unwrap if needed
+            if "duckduckgo.com/l/?uddg=" in url:
+                from urllib.parse import unquote, urlparse, parse_qs
+                parsed = urlparse(url)
+                uddg = parse_qs(parsed.query).get("uddg", [""])[0]
+                url = unquote(uddg) if uddg else url
+
+            snippet = snippet_el.get_text(strip=True) if snippet_el else ""
+            combined_text = f"{title} {snippet}"
+
+            listing = {
+                "source": "ddg_search",
+                "source_url": url,
+                "source_label": f"Search: {query[:50]}",
+                "title": title,
+                "region": region_key,
+                "num_units": self.extract_units(combined_text),
+                "asking_price": self.extract_price(combined_text),
+                "listed_cap_rate": self.extract_cap_rate(combined_text),
+                "discovered_at": datetime.utcnow(),
+            }
+
+            detected_region = self.classify_region(combined_text)
+            if detected_region:
+                listing["region"] = detected_region
+            listing["city"] = self._extract_city(combined_text, region_key)
+
+            if self._is_listing_like(title, snippet, url):
+                listing = self.enrich_from_url(listing)
+                if self.passes_filters(listing):
+                    listings.append(listing)
+
         return listings
 
     def _search(self, query: str, region_key: str) -> List[Dict]:
