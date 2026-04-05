@@ -102,6 +102,8 @@ class BingSearchCollector(BaseCollector):
 
             # Only keep if it looks like a real property listing
             if self._is_listing_like(title, snippet, url):
+                # Enrich: fetch the actual listing page to get units/price/cap rate
+                listing = self.enrich_from_url(listing)
                 if self.passes_filters(listing):
                     listings.append(listing)
 

@@ -122,8 +122,11 @@ class URLWatcherCollector(BaseCollector):
         if cards:
             for card in cards:
                 listing = self._parse_card(card, source_url, label, region_key)
-                if listing and self.passes_filters(listing):
-                    listings.append(listing)
+                if listing:
+                    # Fetch individual listing page to fill in missing fields
+                    listing = self.enrich_from_url(listing)
+                    if self.passes_filters(listing):
+                        listings.append(listing)
         else:
             # Strategy 2: Extract links that look like listing URLs
             for link in soup.find_all("a", href=True):
@@ -141,6 +144,8 @@ class URLWatcherCollector(BaseCollector):
                         "listed_cap_rate": self.extract_cap_rate(text),
                         "discovered_at": datetime.utcnow(),
                     }
+                    # Fetch individual listing page to fill in missing fields
+                    listing = self.enrich_from_url(listing)
                     if self.passes_filters(listing):
                         listings.append(listing)
 
