@@ -43,11 +43,15 @@ class BingSearchCollector(BaseCollector):
                 f"Bing API key not set — using DuckDuckGo HTML fallback for {region_key}"
             )
 
-        # Limit DDG queries more conservatively to avoid rate limiting
+        # Limit DDG queries more conservatively to avoid rate limiting.
+        # Use a local counter (not self._query_count) so each region gets
+        # its own quota — otherwise Edmonton exhausts the counter and
+        # Montreal receives zero queries.
         query_limit = self.daily_limit if use_bing else min(self.daily_limit, 4)
+        region_query_count = 0
 
         for query in queries[:query_limit]:
-            if self._query_count >= query_limit:
+            if region_query_count >= query_limit:
                 break
 
             try:
@@ -57,6 +61,7 @@ class BingSearchCollector(BaseCollector):
                     results = self._search_ddg(query, region_key)
                 listings.extend(results)
                 self._query_count += 1
+                region_query_count += 1
                 time.sleep(1.0 if use_bing else 2.0)  # DDG needs more backoff
             except Exception as e:
                 logger.error(f"{engine} search failed for '{query}': {e}")
