@@ -3,11 +3,12 @@
 import json
 import logging
 import secrets
+import threading
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Depends, HTTPException, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -75,6 +76,77 @@ async def debug_info():
     except Exception as e:
         info["template_load_test"] = "ERROR: " + str(e)
     return info
+
+
+# --- Manual Scan API ---
+
+_scan_state = {
+    "running": False,
+    "started_at": None,
+    "finished_at": None,
+    "result": None,       # stats dict on success
+    "error": None,        # error string on failure
+}
+_scan_lock = threading.Lock()
+
+
+def _run_scan_background():
+    """Runs DealScanner in a background thread. Updates _scan_state."""
+    global _scan_state
+    try:
+        from ..scanner import DealScanner
+        from ..config import get_config
+        cfg = get_config()
+        scanner = DealScanner(cfg)
+        stats = scanner.run()
+        with _scan_lock:
+            _scan_state.update({
+                "running": False,
+                "finished_at": datetime.utcnow().isoformat(),
+                "result": stats,
+                "error": None,
+            })
+        logger.info(f"Manual scan completed: {stats}")
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        logger.error(f"Manual scan failed: {tb}")
+        with _scan_lock:
+            _scan_state.update({
+                "running": False,
+                "finished_at": datetime.utcnow().isoformat(),
+                "result": None,
+                "error": str(e),
+            })
+
+
+@app.post("/scan/run")
+async def trigger_scan(user: str = Depends(get_current_user)):
+    """Kick off a manual scan in the background. Returns 409 if already running."""
+    with _scan_lock:
+        if _scan_state["running"]:
+            return JSONResponse(
+                {"status": "already_running", "started_at": _scan_state["started_at"]},
+                status_code=409,
+            )
+        _scan_state.update({
+            "running": True,
+            "started_at": datetime.utcnow().isoformat(),
+            "finished_at": None,
+            "result": None,
+            "error": None,
+        })
+
+    t = threading.Thread(target=_run_scan_background, daemon=True)
+    t.start()
+    return JSONResponse({"status": "started", "started_at": _scan_state["started_at"]})
+
+
+@app.get("/scan/status")
+async def scan_status(user: str = Depends(get_current_user)):
+    """Returns current scan state."""
+    with _scan_lock:
+        return JSONResponse(dict(_scan_state))
 
 
 @app.get("/login", response_class=HTMLResponse)

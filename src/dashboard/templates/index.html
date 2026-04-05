@@ -116,6 +116,88 @@
         </div>
     </nav>
 
+    <!-- Manual Scan Bar -->
+    <div id="scan-bar" style="background:#fff;border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button id="scan-btn" onclick="triggerScan()" style="padding:8px 20px;background:var(--bbg-red);color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">
+            ▶ Run Scan Now
+        </button>
+        <span id="scan-status" style="font-size:13px;color:var(--muted);">Checking scan status…</span>
+    </div>
+
+    <script>
+    let _polling = null;
+
+    function fmtTime(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso + 'Z');
+        return d.toLocaleString('en-CA', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    }
+
+    async function fetchStatus() {
+        try {
+            const r = await fetch('/scan/status');
+            const s = await r.json();
+            const el = document.getElementById('scan-status');
+            const btn = document.getElementById('scan-btn');
+            if (s.running) {
+                btn.disabled = true;
+                btn.textContent = '⏳ Scanning…';
+                btn.style.background = '#999';
+                el.innerHTML = '<span style="color:var(--orange);">⏳ Scan in progress since ' + fmtTime(s.started_at) + '</span>';
+            } else if (s.error) {
+                btn.disabled = false;
+                btn.textContent = '▶ Run Scan Now';
+                btn.style.background = 'var(--bbg-red)';
+                el.innerHTML = '<span style="color:var(--red);">✗ Scan failed at ' + fmtTime(s.finished_at) + ': ' + s.error.substring(0,120) + '</span>';
+                clearInterval(_polling);
+            } else if (s.result) {
+                btn.disabled = false;
+                btn.textContent = '▶ Run Scan Now';
+                btn.style.background = 'var(--bbg-red)';
+                const res = s.result;
+                el.innerHTML = '<span style="color:var(--green);">✓ Last scan: ' + fmtTime(s.finished_at) + ' — ' + (res.new_listings || 0) + ' new, ' + (res.total_found || 0) + ' found</span>';
+                clearInterval(_polling);
+            } else {
+                btn.disabled = false;
+                btn.textContent = '▶ Run Scan Now';
+                btn.style.background = 'var(--bbg-red)';
+                el.textContent = 'No manual scan run this session.';
+            }
+        } catch(e) { /* ignore */ }
+    }
+
+    async function triggerScan() {
+        const btn = document.getElementById('scan-btn');
+        const el = document.getElementById('scan-status');
+        btn.disabled = true;
+        btn.textContent = '⏳ Starting…';
+        try {
+            const r = await fetch('/scan/run', {method:'POST'});
+            if (r.status === 409) {
+                el.textContent = 'Scan is already running…';
+            }
+        } catch(e) {
+            el.textContent = 'Error starting scan. Try again.';
+            btn.disabled = false;
+            btn.textContent = '▶ Run Scan Now';
+            return;
+        }
+        clearInterval(_polling);
+        _polling = setInterval(function() {
+            fetchStatus().then(function() {
+                if (!document.getElementById('scan-btn').disabled) {
+                    clearInterval(_polling);
+                    setTimeout(function() { window.location.reload(); }, 2000);
+                }
+            });
+        }, 5000);
+        fetchStatus();
+    }
+
+    // Check state on load
+    fetchStatus();
+    </script>
+
     <!-- Stats Cards -->
     <div class="stats-bar">
         <div class="stat-card">
