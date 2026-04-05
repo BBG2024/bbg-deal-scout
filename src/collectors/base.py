@@ -21,10 +21,12 @@ LISTING_DOMAINS = [
 # Keywords in title/text that flag a non-qualifying property
 SMALL_PROPERTY_KEYWORDS = [
     "duplex", "triplex", "quadruplex", "quadplex", "fourplex",
+    "4plex", "4-plex", "3plex", "3-plex", "2plex", "2-plex",
     "semi-detached", "semi detached", "single family", "single-family",
     "bungalow", "house for sale", "maison à vendre", "townhouse",
     "town house", "cottage", "chalet", "commercial land", "vacant lot",
     "terrain à vendre", "warehouse", "retail space", "office space", "bureau",
+    "condo for sale", "condominium",
 ]
 
 # Word-form plex names → unit count
@@ -151,12 +153,67 @@ class BaseCollector(ABC):
             # 6. Compute derived fields
             listing = self._compute_derived(listing)
 
+            # 7. Fallback title from URL slug if still empty
+            if not listing.get("title") or listing["title"].startswith("[Document]"):
+                slug_title = self._title_from_url(url)
+                if slug_title:
+                    listing["title"] = slug_title
+
             time.sleep(0.5)
 
         except Exception as e:
             logger.debug(f"enrich_from_url failed for {url[:60]}: {e}")
 
         return listing
+
+    @staticmethod
+    def _title_from_url(url: str) -> str:
+        """Build a human-readable title from a listing URL slug.
+
+        Examples:
+          centris.ca/en/multi-family-properties~for-sale~montreal-nord/19236181
+            → "Multi-Family — Montreal Nord (#19236181)"
+          realtor.ca/real-estate/25823456/6-units-edmonton-ab
+            → "6 Units Edmonton AB (#25823456)"
+        """
+        try:
+            from urllib.parse import urlparse
+            path = urlparse(url).path.rstrip("/")
+            # Get last meaningful segment
+            parts = [p for p in path.split("/") if p]
+            if not parts:
+                return ""
+
+            # Pull numeric ID if present
+            prop_id = None
+            for part in reversed(parts):
+                if re.match(r"^\d{5,}$", part):
+                    prop_id = part
+                    break
+
+            # Build readable slug from non-numeric path parts
+            slug = ""
+            for part in parts:
+                if not re.match(r"^\d{5,}$", part):
+                    slug = part
+                    # Prefer the most descriptive segment
+                    if "~" in part or len(part) > 10:
+                        break
+
+            # Clean up slug: replace ~ separators, capitalize words
+            slug = re.sub(r"[~\-_]", " ", slug)
+            slug = " ".join(w.capitalize() for w in slug.split())
+            slug = re.sub(r"\b(For Sale|En|The|De|Du|Les|La|Le)\b", "", slug, flags=re.I).strip()
+            slug = re.sub(r"\s+", " ", slug).strip()
+
+            if not slug:
+                return ""
+
+            if prop_id:
+                return f"{slug} (#{prop_id})"
+            return slug
+        except Exception:
+            return ""
 
     # ------------------------------------------------------------------
     # Site-specific extractors

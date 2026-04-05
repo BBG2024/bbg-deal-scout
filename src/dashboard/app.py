@@ -242,12 +242,11 @@ async def update_status(
 
 @app.post("/admin/purge-junk")
 async def purge_junk_listings(user: str = Depends(get_current_user)):
-    """Remove clearly invalid listings (category pages, no financial data, suspicious URLs)."""
-    # Patterns that identify category pages and non-property URLs
-    junk_patterns = [
-        # Category/nav pages — URL ends at domain level with no property ID
+    """Remove clearly invalid listings (category pages, small properties, nav links)."""
+    # URL fragments that identify non-qualifying listings
+    url_junk_patterns = [
+        # pmml.ca category pages
         "pmml.ca/proprietes",
-        "pmml.ca/proprietes/",
         "/proprietes/hotel",
         "/proprietes/commerce",
         "/proprietes/construction",
@@ -256,12 +255,44 @@ async def purge_junk_listings(user: str = Depends(get_current_user)):
         "/proprietes/multi-logements",
         "/proprietes/fond-de-commerce",
         "/proprietes/immeuble",
+        # Small property types in centris.ca / other URLs
+        "/duplexes~",
+        "/triplexes~",
+        "/duplex~",
+        "/triplex~",
+        "/4plex~",
+        "/quadruplex~",
+        "/condo~",
+        "/condos~",
+        "/bungalow~",
+        "/house~",
+        "/single-family~",
+        "/townhouse~",
+        "/cottage~",
     ]
 
     deleted = 0
     for listing in Listing.select():
-        url = listing.source_url or ""
-        if any(pat in url for pat in junk_patterns):
+        url = (listing.source_url or "").lower()
+        title = (listing.title or "").lower()
+
+        # Reject by URL pattern
+        if any(pat in url for pat in url_junk_patterns):
+            listing.delete_instance()
+            deleted += 1
+            continue
+
+        # Reject no-data category pages: no price, no units, no cap rate, title looks like nav
+        nav_titles = [
+            "toutes les propriétés", "toutes les proprietes",
+            "multi-logements", "hôtellerie", "hotelerie",
+            "commerce de détail", "commerce de detail",
+            "construction récente", "construction recente",
+            "fond de commerce", "semi-commercial",
+            "immeuble à vocation", "immeuble a vocation",
+            "résidence privée pour aînés", "residence privee",
+        ]
+        if any(nav in title for nav in nav_titles):
             listing.delete_instance()
             deleted += 1
 

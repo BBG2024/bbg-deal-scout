@@ -193,10 +193,40 @@ class URLWatcherCollector(BaseCollector):
 
     @staticmethod
     def _looks_like_listing_link(href: str, text: str) -> bool:
-        """Heuristic: does this link look like a property listing?"""
+        """Heuristic: does this link look like an individual property listing?
+
+        Requirements:
+        1. URL or text must contain a listing signal
+        2. URL should look like an individual listing (has a numeric ID), OR
+           the link text is long and descriptive enough to suggest a real property
+        3. Reject nav/category links that match on broad terms like 'proprietes'
+        """
         combined = f"{href} {text}".lower()
-        signals = ["property", "listing", "detail", "fiche", "propriete", "immobilier"]
-        return any(s in combined for s in signals) and len(text) > 10
+        h = href.lower()
+
+        # Reject links that are clearly category/nav pages (no numeric property ID)
+        # e.g. /proprietes/multi-logements  /proprietes/hotel-hebergement
+        if re.search(r"/propri[eé]t[eé]s?/[a-z]", h):
+            # Category page pattern: /proprietes/<word> with no trailing number
+            if not re.search(r"\d{4,}", h):
+                return False
+
+        # Must have a listing-positive signal in URL or text
+        signals = ["property", "listing", "detail", "fiche", "immobilier",
+                   "real-estate", "immeuble", "appartement", "apartment",
+                   "multifamily", "multi-family", "revenue", "logement"]
+
+        has_signal = any(s in combined for s in signals)
+        if not has_signal:
+            return False
+
+        # Individual listing URL: has a numeric ID segment
+        has_id = bool(re.search(r"/\d{5,}", h))
+
+        # Long descriptive text also acceptable even without a numeric ID
+        has_description = len(text.strip()) > 25
+
+        return has_id or has_description
 
     @staticmethod
     def _resolve_url(base: str, relative: str) -> str:
