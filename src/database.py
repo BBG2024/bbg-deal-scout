@@ -42,6 +42,8 @@ class Listing(BaseModel):
     price_per_unit = FloatField(null=True)
     listed_cap_rate = FloatField(null=True)
     estimated_noi = FloatField(null=True)
+    gross_revenue = FloatField(null=True)        # Annual gross rental income (from listing page)
+    expenses_json = TextField(null=True)         # JSON dict: expense_name → annual_amount
 
     # Property details
     num_units = IntegerField(null=True)
@@ -114,7 +116,22 @@ def init_db(db_path: str = "data/deal_scout.db"):
 
     db.connect()
     db.create_tables([Listing, ScanLog, WatchURLState], safe=True)
+
+    # Add new columns to existing tables (safe — ALTER TABLE is idempotent
+    # because we catch OperationalError when the column already exists).
+    _add_column_if_missing("listings", "gross_revenue", "REAL")
+    _add_column_if_missing("listings", "expenses_json", "TEXT")
+
     logger.info(f"Database initialized at {path}")
+
+
+def _add_column_if_missing(table: str, column: str, col_type: str):
+    """ALTER TABLE … ADD COLUMN — safe to call even if column already exists."""
+    try:
+        db.execute_sql(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+        logger.info(f"DB migration: added {table}.{column}")
+    except Exception:
+        pass  # Column already exists — this is the normal path after first deploy
 
 
 def generate_fingerprint(title: str, address: str = None, source_url: str = None) -> str:

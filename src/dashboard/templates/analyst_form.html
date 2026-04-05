@@ -378,13 +378,76 @@
     </div>
 
     <script>
+        /* ── Prefill data from listing (server-injected) ────── */
+        const PREFILL = {
+            gross_revenue:  {{ (prefill.gross_revenue  or 0) | float if prefill else 0 }},
+            estimated_noi:  {{ (prefill.estimated_noi  or 0) | float if prefill else 0 }},
+            expenses_json:  {{ (prefill.expenses_json  or '{}') | tojson if prefill else '{}' }},
+            num_units:      {{ (prefill.num_units      or 0) | int   if prefill else 0 }},
+        };
+        // Parse the expenses JSON (already a string at this point)
+        let PREFILL_EXPENSES = {};
+        try { PREFILL_EXPENSES = JSON.parse(PREFILL.expenses_json); } catch(e) {}
+
+        /* ── Expense field → input index mapping ─────────────── */
+        // Matches the order of expense inputs in the form:
+        // expense_0=Insurance, expense_1=Municipal Taxes, expense_2=School Taxes,
+        // expense_3=Snow Removal, expense_4=Lawn/Landscaping, expense_5=Utility,
+        // expense_6=Maintenance, expense_7=Management, expense_8=Concierge
+        const EXPENSE_MAP = {
+            "Insurance":     0,
+            "Municipal Taxes": 1,
+            "School Taxes":  2,
+            "Snow Removal":  3,
+            "Maintenance":   6,
+            "Electricity":   5,
+            "Gas":           5,
+            "Water":         5,
+            "Janitorial":    8,
+            "Administration":7,
+            "Other Expenses":8,
+        };
+
+        function applyPrefillExpenses() {
+            const entries = Object.entries(PREFILL_EXPENSES);
+            if (entries.length === 0) return;
+            entries.forEach(([label, annualAmt]) => {
+                const idx = EXPENSE_MAP[label];
+                if (idx === undefined) return;
+                const field = document.querySelector(`input[name="expense_${idx}"]`);
+                if (!field) return;
+                // Convert annual → monthly, add to whatever is already there
+                const monthly = Math.round(annualAmt / 12);
+                const current = parseFloat(field.value) || 0;
+                field.value = current + monthly;
+            });
+            // If we have a total expense figure but no line items, distribute evenly
+            // across tax + maintenance + insurance slots
+        }
+
         /* ── Unit inputs ────────────────────────────────────── */
         function updateUnitInputs() {
             const n = parseInt(document.getElementById('numUnits').value) || 5;
             const container = document.getElementById('unitInputs');
+
+            // Compute suggested rent: gross_revenue / 12 / num_units
+            // Only apply if it looks reasonable (> $100/mo)
+            let suggestedRent = 0;
+            if (PREFILL.gross_revenue > 0 && n > 0) {
+                suggestedRent = Math.round(PREFILL.gross_revenue / 12 / n);
+                if (suggestedRent < 100 || suggestedRent > 20000) suggestedRent = 0;
+            }
+
             let html = '';
             for (let i = 0; i < n; i++) {
-                html += `<div class="unit-row"><label>Unit ${i+1}</label><input type="number" name="unit_rent_${i}" value="" step="25" placeholder="Monthly rent $"></div>`;
+                const rentVal = suggestedRent > 0 ? suggestedRent : '';
+                const hint = suggestedRent > 0
+                    ? `<span class="hint">Estimated from listing gross revenue — verify before submitting</span>`
+                    : '';
+                html += `<div class="unit-row"><label>Unit ${i+1}</label>`
+                      + `<input type="number" name="unit_rent_${i}" value="${rentVal}" step="25" placeholder="Monthly rent $">`
+                      + hint
+                      + `</div>`;
             }
             container.innerHTML = html;
         }
@@ -430,12 +493,29 @@
             if (selected) selectCMHC(selected.value);
         }
 
-        // Wire up purchase price field
+        // Wire up purchase price field + apply prefill data on load
         document.addEventListener('DOMContentLoaded', function() {
             const pp = document.getElementById('purchasePrice');
             if (pp) pp.addEventListener('input', onPriceChange);
-            // Pre-fill with default selection (standard_25)
+            // Pre-fill with default CMHC selection
             selectCMHC('standard_25');
+            // Apply expense line items from listing data (if any)
+            applyPrefillExpenses();
+            // Show banner if gross revenue was pre-populated
+            if (PREFILL.gross_revenue > 0) {
+                const box = document.querySelector('.info-box');
+                if (box) {
+                    const banner = document.createElement('div');
+                    banner.className = 'info-box';
+                    banner.style.background = '#e8f5e9';
+                    banner.style.borderLeft = '3px solid #2e7d32';
+                    banner.innerHTML = `📊 <strong>Financial data loaded from listing:</strong> `
+                        + `Gross Revenue: $${PREFILL.gross_revenue.toLocaleString()}/yr`
+                        + (PREFILL.estimated_noi > 0 ? ` | NOI: $${PREFILL.estimated_noi.toLocaleString()}/yr` : '')
+                        + `. Unit rents and expenses estimated — verify before submitting.`;
+                    document.querySelector('form').insertBefore(banner, document.querySelector('form').firstChild);
+                }
+            }
         });
     </script>
 </body>

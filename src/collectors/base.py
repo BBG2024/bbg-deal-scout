@@ -339,10 +339,213 @@ class BaseCollector(ABC):
                             listing["address"] = addr
                             break
 
+            # --- 4. Extract financial summary (income / expenses) ---
+            fin = self._extract_centris_financials(soup)
+            if fin.get("gross_revenue") and not listing.get("gross_revenue"):
+                listing["gross_revenue"] = fin["gross_revenue"]
+            if fin.get("expenses_json") and not listing.get("expenses_json"):
+                listing["expenses_json"] = fin["expenses_json"]
+            # Derive estimated NOI if we have both revenue and expenses
+            if not listing.get("estimated_noi") and fin.get("gross_revenue") and fin.get("total_expenses"):
+                listing["estimated_noi"] = fin["gross_revenue"] - fin["total_expenses"]
+
+            # --- 5. Occupancy from text hints ---
+            if not listing.get("occupancy"):
+                full_text = soup.get_text(" ", strip=True)
+                occ = self._extract_occupancy(full_text)
+                if occ:
+                    listing["occupancy"] = occ
+
         except Exception as e:
             logger.debug(f"Centris enrichment failed: {e}")
 
         return listing
+
+    def _extract_centris_financials(self, soup) -> dict:
+        """
+        Parse the income/expense financial summary from a centris.ca property page.
+
+        Centris renders a summary block with French/English labels and dollar values.
+        Typical labels (French → English mapping):
+          Revenus bruts / Gross revenues
+          Dépenses / Expenses
+          Taxes municipales / Municipal taxes
+          Taxes scolaires / School taxes
+          Assurances / Insurance
+          Entretien / Maintenance
+          Électricité / Electricity
+          Gaz / Gas
+
+        Returns a dict with:
+          gross_revenue   — annual, float
+          total_expenses  — annual, float
+          expenses_json   — JSON string: {label: annual_amount, ...}
+        """
+        import json as _json
+
+        result: dict = {}
+        expenses: dict = {}
+
+        # Label normalisation map (lower-case French + English → canonical key)
+        LABEL_MAP = {
+            # Revenue labels
+            "revenus bruts": "_gross_revenue",
+            "gross revenue": "_gross_revenue",
+            "gross revenues": "_gross_revenue",
+            "revenu brut": "_gross_revenue",
+            "total revenue": "_gross_revenue",
+            # Total expense labels
+            "dépenses": "_total_expenses",
+            "depenses": "_total_expenses",
+            "total expenses": "_total_expenses",
+            "expenses": "_total_expenses",
+            # Individual expense line items (stored in expenses dict)
+            "taxes municipales": "Municipal Taxes",
+            "taxe municipale": "Municipal Taxes",
+            "municipal taxes": "Municipal Taxes",
+            "taxes scolaires": "School Taxes",
+            "taxe scolaire": "School Taxes",
+            "school taxes": "School Taxes",
+            "assurances": "Insurance",
+            "assurance": "Insurance",
+            "insurance": "Insurance",
+            "entretien": "Maintenance",
+            "maintenance": "Maintenance",
+            "électricité": "Electricity",
+            "electricite": "Electricity",
+            "electricity": "Electricity",
+            "gaz": "Gas",
+            "gas": "Gas",
+            "eau": "Water",
+            "water": "Water",
+            "déneigement": "Snow Removal",
+            "deneigement": "Snow Removal",
+            "snow removal": "Snow Removal",
+            "conciergerie": "Janitorial",
+            "janitorial": "Janitorial",
+            "administration": "Administration",
+            "autres dépenses": "Other Expenses",
+            "autres depenses": "Other Expenses",
+            "other expenses": "Other Expenses",
+        }
+
+        def _parse_dollar(text: str) -> float | None:
+            """Extract a dollar amount from a string like '$48 500' or '48,500'."""
+            import re
+            cleaned = re.sub(r"[^\d.,]", "", text.replace("\xa0", "").replace(" ", ""))
+            # Handle European thousands separator (space or period with comma decimal)
+            # Centris uses spaces as thousands separators: "48 500"
+            cleaned = re.sub(r"[,.](?=\d{3}(?:[,.]|$))", "", cleaned)
+            cleaned = cleaned.replace(",", ".")
+            try:
+                val = float(cleaned)
+                return val if val > 0 else None
+            except (ValueError, TypeError):
+                return None
+
+        # Strategy 1: Look for structured label-value rows in any table or dl
+        # Centris uses various container patterns across page versions
+        for container in soup.select("table, dl, [class*='revenue'], [class*='income'], "
+                                     "[class*='finance'], [class*='revenu'], [class*='depense'], "
+                                     "[class*='expense'], [class*='cout'], [class*='cost']"):
+            rows = container.select("tr, dt, [class*='row'], [class*='item'], [class*='line']")
+            for row in rows:
+                cells = row.select("td, dd, span, div")
+                if len(cells) >= 2:
+                    label = cells[0].get_text(" ", strip=True).lower().strip(":")
+                    value_text = cells[-1].get_text(" ", strip=True)
+                    amount = _parse_dollar(value_text)
+                    if amount is None:
+                        continue
+                    mapped = LABEL_MAP.get(label)
+                    if mapped == "_gross_revenue":
+                        result["gross_revenue"] = amount
+                    elif mapped == "_total_expenses":
+                        result["total_expenses"] = amount
+                    elif mapped:
+                        expenses[mapped] = amount
+
+        # Strategy 2: Scan all text nodes for "Label : $XX,XXX" patterns
+        import re
+        full_text = soup.get_text("\n", strip=True)
+        lines = full_text.split("\n")
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # Match "Label : $48 500" or "Label\t48 500 $"
+            m = re.match(
+                r"^(.+?)\s*[:\-–]\s*\$?\s*([\d\s,\.]+)\s*\$?$",
+                line,
+                re.IGNORECASE,
+            )
+            if m:
+                label_raw = m.group(1).strip().lower()
+                amount = _parse_dollar(m.group(2))
+                if amount is None or amount < 100:
+                    continue
+                mapped = LABEL_MAP.get(label_raw)
+                if mapped == "_gross_revenue" and "gross_revenue" not in result:
+                    result["gross_revenue"] = amount
+                elif mapped == "_total_expenses" and "total_expenses" not in result:
+                    result["total_expenses"] = amount
+                elif mapped and mapped not in expenses:
+                    expenses[mapped] = amount
+
+        # Strategy 3: Look for structured centris "Revenus et dépenses" section
+        # Centris often has a specific block with this heading
+        for heading in soup.find_all(["h2", "h3", "h4", "strong", "b"]):
+            h_text = heading.get_text(strip=True).lower()
+            if any(k in h_text for k in ["revenu", "revenue", "dépense", "depense", "finance"]):
+                # Walk siblings/parent content for label:value pairs
+                parent = heading.find_parent()
+                if parent:
+                    parent_text = parent.get_text("\n", strip=True)
+                    for line in parent_text.split("\n"):
+                        line = line.strip()
+                        m = re.match(
+                            r"^(.+?)\s*[:\-–]\s*\$?\s*([\d\s,\.]+)\s*\$?$",
+                            line,
+                            re.IGNORECASE,
+                        )
+                        if m:
+                            label_raw = m.group(1).strip().lower()
+                            amount = _parse_dollar(m.group(2))
+                            if amount is None or amount < 100:
+                                continue
+                            mapped = LABEL_MAP.get(label_raw)
+                            if mapped == "_gross_revenue" and "gross_revenue" not in result:
+                                result["gross_revenue"] = amount
+                            elif mapped == "_total_expenses" and "total_expenses" not in result:
+                                result["total_expenses"] = amount
+                            elif mapped and mapped not in expenses:
+                                expenses[mapped] = amount
+
+        # If individual line items were found but no total_expenses, sum them
+        if expenses and "total_expenses" not in result:
+            result["total_expenses"] = sum(expenses.values())
+
+        # Serialize expenses dict to JSON
+        if expenses:
+            result["expenses_json"] = _json.dumps(expenses)
+
+        return result
+
+    @staticmethod
+    def _extract_occupancy(text: str) -> float | None:
+        """Extract occupancy percentage from free text."""
+        import re
+        m = re.search(r"(\d{2,3})\s*%\s*(?:occupi|occup|loués|loues|rented|leased)", text, re.I)
+        if m:
+            val = int(m.group(1))
+            if 50 <= val <= 100:
+                return float(val)
+        m = re.search(r"(?:occupi|occup|loués|loues|rented|leased)[^\d]*(\d{2,3})\s*%", text, re.I)
+        if m:
+            val = int(m.group(1))
+            if 50 <= val <= 100:
+                return float(val)
+        return None
 
     @staticmethod
     def _centris_units_from_url(url: str) -> int | None:
@@ -610,7 +813,42 @@ class BaseCollector(ABC):
             if at:
                 listing["asset_type"] = at
 
+        if not listing.get("gross_revenue"):
+            gr = self.extract_gross_revenue(full)
+            if gr:
+                listing["gross_revenue"] = gr
+
         return listing
+
+    @staticmethod
+    def extract_gross_revenue(text: str) -> Optional[float]:
+        """Extract annual gross revenue from text.
+
+        Handles patterns like:
+          Revenus bruts : 48 500 $
+          Gross revenues: $48,500
+          Annual gross income $48 500
+        """
+        import re
+        patterns = [
+            r"(?:revenus?\s+bruts?|gross\s+revenues?|annual\s+gross\s+(?:income|revenue|rent))"
+            r"\s*[:\-–]?\s*\$?\s*([\d\s,\.]+)\s*\$?",
+            r"\$?\s*([\d\s,\.]+)\s*\$?\s*(?:in\s+)?(?:gross\s+)?(?:annual\s+)?(?:revenue|revenu|income)",
+        ]
+        for pat in patterns:
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                raw = m.group(1).strip()
+                # Remove thousands separators (spaces, commas before 3-digit groups)
+                raw = re.sub(r"[\s,](?=\d{3}(?:[\s,\.]|$))", "", raw)
+                raw = raw.replace(",", ".")
+                try:
+                    val = float(raw)
+                    if 1000 < val < 100_000_000:  # sanity check
+                        return val
+                except (ValueError, TypeError):
+                    pass
+        return None
 
     def _compute_derived(self, listing: dict) -> dict:
         """Compute price_per_unit and other derived fields."""

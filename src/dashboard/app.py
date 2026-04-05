@@ -473,6 +473,16 @@ async def analyst_new(
                 "num_units": listing.num_units or 5,
                 "cap_rate": listing.listed_cap_rate or 0,
                 "listing_id": listing_id,
+                # Financial data (populated if collector extracted it from the listing page)
+                "gross_revenue": listing.gross_revenue or 0,
+                "estimated_noi": listing.estimated_noi or 0,
+                "expenses_json": listing.expenses_json or "{}",
+                "price_per_unit": listing.price_per_unit or 0,
+                "year_built": listing.year_built or "",
+                "building_sf": listing.building_sf or 0,
+                "occupancy": listing.occupancy or 0,
+                "asset_type": listing.asset_type or "",
+                "region": listing.region or "",
             }
         except Listing.DoesNotExist:
             pass
