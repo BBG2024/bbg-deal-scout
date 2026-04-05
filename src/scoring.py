@@ -9,13 +9,37 @@ from .config import get_scoring
 logger = logging.getLogger(__name__)
 
 
-# Market benchmark data for price-per-unit comparisons
-# These are populated from CMHC reports or user-configured values.
-# Empty by default — the scorer skips price/unit checks when no benchmarks are set.
-MARKET_BENCHMARKS = {
-    "greater_edmonton": {},
-    "greater_montreal": {},
+# CMHC-informed market benchmarks (2023–2024 Rental Market Reports).
+# These are defaults — override via config.yaml scoring.market_benchmarks.
+# Update annually from https://www.cmhc-schl.gc.ca/
+_DEFAULT_BENCHMARKS = {
+    "greater_edmonton": {
+        "avg_price_per_unit": 145_000,   # ~$145K/unit mid-market resale, 6–20 units
+        "avg_cap_rate": 5.2,             # Edmonton apartment cap rate, CMHC 2023
+    },
+    "greater_montreal": {
+        "avg_price_per_unit": 185_000,   # ~$185K/unit Longueuil/Laval 5–12 plex
+        "avg_cap_rate": 4.8,             # Montreal apartment cap rate, CMHC 2023
+    },
 }
+
+
+def _load_benchmarks() -> dict:
+    """Load market benchmarks: config.yaml overrides, otherwise CMHC defaults.
+
+    config.yaml is gitignored (contains secrets) so defaults must be in code.
+    To override: add scoring.market_benchmarks.<region> to config.yaml.
+    """
+    try:
+        cfg = get_scoring()
+        user_benchmarks = cfg.get("market_benchmarks", {})
+        # Deep merge: user values override defaults region-by-region
+        merged = dict(_DEFAULT_BENCHMARKS)
+        for region, vals in user_benchmarks.items():
+            merged[region] = {**merged.get(region, {}), **vals}
+        return merged
+    except Exception:
+        return _DEFAULT_BENCHMARKS
 
 
 def score_listing(listing, thresholds: Dict = None) -> Dict:
@@ -42,7 +66,7 @@ def score_listing(listing, thresholds: Dict = None) -> Dict:
                 ],
             }
     region = listing.region if hasattr(listing, "region") else listing.get("region", "")
-    benchmarks = MARKET_BENCHMARKS.get(region, {})
+    benchmarks = _load_benchmarks().get(region, {})
 
     checks = {}
     scored_count = 0

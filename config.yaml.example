@@ -101,6 +101,19 @@ scoring:
   min_cap_rate: 5.0
   min_dscr: 1.20
   min_occupancy: 85.0
+
+  # Market benchmarks for price-per-unit scoring (check #3) and value-add assessment.
+  # Defaults are CMHC-informed (2023–24 Rental Market Reports) and live in scoring.py.
+  # Override here to use local/current market data. Update annually.
+  # Source: https://www.cmhc-schl.gc.ca/
+  market_benchmarks:
+    greater_edmonton:
+      avg_price_per_unit: 145000    # $/unit, mid-market resale (6–20 units)
+      avg_cap_rate: 5.2             # %
+    greater_montreal:
+      avg_price_per_unit: 185000    # $/unit, Longueuil/Laval 5–12 plex
+      avg_cap_rate: 4.8             # %
+
   target_geographies:
     - "Edmonton"
     - "St. Albert"
