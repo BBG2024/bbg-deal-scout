@@ -191,18 +191,64 @@ def get_listings(
     region: str = None,
     status: str = None,
     min_score: int = None,
+    # Price range
+    min_price: float = None,
+    max_price: float = None,
+    # Year built range
+    min_year_built: int = None,
+    max_year_built: int = None,
+    # Units bracket e.g. "5-14", "15-24", "25-34", "35-44", "45-54", "55+"
+    units_bracket: str = None,
+    # Sorting: column + direction
+    sort_by: str = "discovered_at",     # discovered_at | year_built | asking_price | num_units
+    sort_dir: str = "desc",             # asc | desc
     limit: int = 100,
     offset: int = 0,
 ) -> list:
-    """Get listings with optional filters."""
+    """Get listings with optional filters and sorting."""
     query = Listing.select()
+
+    # ── Filters ───────────────────────────────────────────────
     if region:
         query = query.where(Listing.region == region)
     if status:
         query = query.where(Listing.status == status)
     if min_score is not None:
         query = query.where(Listing.tier1_score >= min_score)
-    return list(query.order_by(Listing.discovered_at.desc()).limit(limit).offset(offset))
+    if min_price is not None:
+        query = query.where(Listing.asking_price >= min_price)
+    if max_price is not None:
+        query = query.where(Listing.asking_price <= max_price)
+    if min_year_built is not None:
+        query = query.where(Listing.year_built >= min_year_built)
+    if max_year_built is not None:
+        query = query.where(Listing.year_built <= max_year_built)
+    if units_bracket:
+        if units_bracket == "55+":
+            query = query.where(Listing.num_units >= 55)
+        elif "-" in units_bracket:
+            parts = units_bracket.split("-")
+            try:
+                lo, hi = int(parts[0]), int(parts[1])
+                query = query.where(
+                    (Listing.num_units >= lo) & (Listing.num_units <= hi)
+                )
+            except (ValueError, IndexError):
+                pass
+
+    # ── Sorting ───────────────────────────────────────────────
+    SORT_FIELDS = {
+        "discovered_at": Listing.discovered_at,
+        "year_built":    Listing.year_built,
+        "asking_price":  Listing.asking_price,
+        "num_units":     Listing.num_units,
+    }
+    sort_field = SORT_FIELDS.get(sort_by, Listing.discovered_at)
+    order = sort_field.desc() if sort_dir != "asc" else sort_field.asc()
+    # Always secondary-sort by discovered_at desc so ties break consistently
+    query = query.order_by(order, Listing.discovered_at.desc())
+
+    return list(query.limit(limit).offset(offset))
 
 
 def get_scan_logs(limit: int = 30) -> list:

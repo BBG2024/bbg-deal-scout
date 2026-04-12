@@ -173,24 +173,71 @@ async def logout(request: Request):
     return RedirectResponse(url="/login")
 
 
+def _safe_int(val: str, default=None):
+    """Parse an integer query param safely; return default on blank/invalid."""
+    if val is None or (isinstance(val, str) and not val.strip()):
+        return default
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def _safe_float(val: str, default=None):
+    """Parse a float query param safely."""
+    if val is None or (isinstance(val, str) and not val.strip()):
+        return default
+    try:
+        return float(str(val).replace(",", ""))
+    except (ValueError, TypeError):
+        return default
+
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
+    # Existing filters
     region: str = None,
     status: str = None,
-    min_score: str = None,   # Accept as str — empty string from dropdown causes int parse error
+    min_score: str = None,
+    # New filters
+    min_price: str = None,
+    max_price: str = None,
+    min_year_built: str = None,
+    max_year_built: str = None,
+    units_bracket: str = None,
+    # Sorting
+    sort_by: str = "discovered_at",
+    sort_dir: str = "desc",
     page: int = 1,
     user: str = Depends(get_current_user),
 ):
     per_page = 25
     offset = (page - 1) * per_page
 
-    # Convert min_score to int (dropdown sends empty string when "Any Score" selected)
-    score_filter = int(min_score) if min_score and min_score.strip().lstrip("-").isdigit() else None
+    score_filter  = _safe_int(min_score)
+    min_price_f   = _safe_float(min_price)
+    max_price_f   = _safe_float(max_price)
+    min_yr        = _safe_int(min_year_built)
+    max_yr        = _safe_int(max_year_built)
+    # Sanitise sort params against whitelist
+    VALID_SORTS = {"discovered_at", "year_built", "asking_price", "num_units"}
+    sort_by_safe  = sort_by if sort_by in VALID_SORTS else "discovered_at"
+    sort_dir_safe = "asc" if sort_dir == "asc" else "desc"
 
     listings = get_listings(
-        region=region, status=status, min_score=score_filter,
-        limit=per_page, offset=offset,
+        region=region,
+        status=status,
+        min_score=score_filter,
+        min_price=min_price_f,
+        max_price=max_price_f,
+        min_year_built=min_yr,
+        max_year_built=max_yr,
+        units_bracket=units_bracket or None,
+        sort_by=sort_by_safe,
+        sort_dir=sort_dir_safe,
+        limit=per_page,
+        offset=offset,
     )
 
     # Parse tier1_details for display
@@ -206,12 +253,25 @@ async def dashboard(
     stats = get_stats()
     scan_logs = get_scan_logs(limit=5)
 
+    filters = {
+        "region": region or "",
+        "status": status or "",
+        "min_score": score_filter,
+        "min_price": min_price or "",
+        "max_price": max_price or "",
+        "min_year_built": min_year_built or "",
+        "max_year_built": max_year_built or "",
+        "units_bracket": units_bracket or "",
+        "sort_by": sort_by_safe,
+        "sort_dir": sort_dir_safe,
+    }
+
     return templates.TemplateResponse(request, "index.html", {
         "user": user,
         "listings": listings,
         "stats": stats,
         "scan_logs": scan_logs,
-        "filters": {"region": region, "status": status, "min_score": score_filter},
+        "filters": filters,
         "page": page,
         "per_page": per_page,
     })

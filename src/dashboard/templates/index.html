@@ -36,10 +36,22 @@
         .stat-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
         /* --- Filters --- */
-        .filters { padding: 0 24px 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-        .filters select, .filters input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white; }
-        .filters button { padding: 8px 16px; background: var(--bbg-blue); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
-        .filters button.reset { background: #eee; color: var(--text); }
+        .filters { padding: 0 24px 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 3px; }
+        .filter-group label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+        .filters select, .filters input[type="number"], .filters input[type="text"] {
+            padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white; min-width: 110px;
+        }
+        .filter-range { display: flex; gap: 4px; align-items: center; }
+        .filter-range input { min-width: 80px !important; }
+        .filter-range span { font-size: 12px; color: var(--muted); }
+        .filters .btn-apply { padding: 8px 18px; background: var(--bbg-blue); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; align-self: flex-end; }
+        .filters .btn-reset { padding: 8px 14px; background: #eee; color: var(--text); border: none; border-radius: 6px; cursor: pointer; font-size: 13px; align-self: flex-end; text-decoration: none; display: inline-flex; align-items: center; }
+        /* Sortable column headers */
+        thead th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+        thead th.sortable:hover { color: var(--bbg-blue); }
+        thead th.sort-active { color: var(--bbg-blue); }
+        .sort-arrow { display: inline-block; margin-left: 3px; font-size: 10px; }
 
         /* --- Table --- */
         .table-wrap { padding: 0 24px 24px; overflow-x: auto; }
@@ -196,6 +208,27 @@
 
     // Check state on load
     fetchStatus();
+
+    /* ── Column sort helper ─────────────────────────────────────
+       Clicking a sortable header flips direction if already sorted
+       by that column, otherwise sorts desc by default.
+    ──────────────────────────────────────────────────────────── */
+    function sortBy(col) {
+        const form = document.getElementById('filterForm');
+        const currentSort = form.querySelector('[name="sort_by"]');
+        const currentDir  = form.querySelector('[name="sort_dir"]');
+        if (currentSort && currentDir) {
+            if (currentSort.value === col) {
+                // Flip direction
+                currentDir.value = currentDir.value === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentSort.value = col;
+                // Year built: sensible default is newest (desc) — same for price/units/date
+                currentDir.value = 'desc';
+            }
+            form.submit();
+        }
+    }
     </script>
 
     <!-- Stats Cards -->
@@ -227,28 +260,94 @@
     </div>
 
     <!-- Filters -->
-    <form class="filters" method="get" action="/">
-        <select name="region">
-            <option value="">All Regions</option>
-            <option value="greater_edmonton" {% if filters.region == 'greater_edmonton' %}selected{% endif %}>Greater Edmonton</option>
-            <option value="greater_montreal" {% if filters.region == 'greater_montreal' %}selected{% endif %}>Greater Montreal</option>
-        </select>
-        <select name="status">
-            <option value="">All Statuses</option>
-            <option value="new" {% if filters.status == 'new' %}selected{% endif %}>New</option>
-            <option value="reviewed" {% if filters.status == 'reviewed' %}selected{% endif %}>Reviewed</option>
-            <option value="shortlisted" {% if filters.status == 'shortlisted' %}selected{% endif %}>Shortlisted</option>
-            <option value="passed" {% if filters.status == 'passed' %}selected{% endif %}>Passed</option>
-            <option value="dead" {% if filters.status == 'dead' %}selected{% endif %}>Dead</option>
-        </select>
-        <select name="min_score">
-            <option value="">Any Score</option>
-            <option value="4" {% if filters.min_score == 4 %}selected{% endif %}>4+ (Strong)</option>
-            <option value="3" {% if filters.min_score == 3 %}selected{% endif %}>3+ (Decent)</option>
-            <option value="1" {% if filters.min_score == 1 %}selected{% endif %}>1+ (Scored)</option>
-        </select>
-        <button type="submit">Filter</button>
-        <a href="/"><button type="button" class="reset">Reset</button></a>
+    <form class="filters" method="get" action="/" id="filterForm">
+
+        <div class="filter-group">
+            <label>Region</label>
+            <select name="region">
+                <option value="">All Regions</option>
+                <option value="greater_edmonton" {% if filters.region == 'greater_edmonton' %}selected{% endif %}>Greater Edmonton</option>
+                <option value="greater_montreal" {% if filters.region == 'greater_montreal' %}selected{% endif %}>Greater Montreal</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Status</label>
+            <select name="status">
+                <option value="">All Statuses</option>
+                <option value="new"         {% if filters.status == 'new' %}selected{% endif %}>New</option>
+                <option value="reviewed"    {% if filters.status == 'reviewed' %}selected{% endif %}>Reviewed</option>
+                <option value="shortlisted" {% if filters.status == 'shortlisted' %}selected{% endif %}>Shortlisted</option>
+                <option value="passed"      {% if filters.status == 'passed' %}selected{% endif %}>Passed</option>
+                <option value="dead"        {% if filters.status == 'dead' %}selected{% endif %}>Dead</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Min Score</label>
+            <select name="min_score">
+                <option value="">Any Score</option>
+                <option value="4" {% if filters.min_score == 4 %}selected{% endif %}>4+ (Strong)</option>
+                <option value="3" {% if filters.min_score == 3 %}selected{% endif %}>3+ (Decent)</option>
+                <option value="1" {% if filters.min_score == 1 %}selected{% endif %}>1+ (Scored)</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Price Range ($)</label>
+            <div class="filter-range">
+                <input type="number" name="min_price" placeholder="Min" step="50000"
+                       value="{{ filters.min_price }}" style="min-width:90px;">
+                <span>–</span>
+                <input type="number" name="max_price" placeholder="Max" step="50000"
+                       value="{{ filters.max_price }}" style="min-width:90px;">
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label>Units Bracket</label>
+            <select name="units_bracket">
+                <option value="">Any Units</option>
+                <option value="5-14"  {% if filters.units_bracket == '5-14'  %}selected{% endif %}> 5 – 14 units</option>
+                <option value="15-24" {% if filters.units_bracket == '15-24' %}selected{% endif %}>15 – 24 units</option>
+                <option value="25-34" {% if filters.units_bracket == '25-34' %}selected{% endif %}>25 – 34 units</option>
+                <option value="35-44" {% if filters.units_bracket == '35-44' %}selected{% endif %}>35 – 44 units</option>
+                <option value="45-54" {% if filters.units_bracket == '45-54' %}selected{% endif %}>45 – 54 units</option>
+                <option value="55+"   {% if filters.units_bracket == '55+'   %}selected{% endif %}>55+ units</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Year Built</label>
+            <div class="filter-range">
+                <input type="number" name="min_year_built" placeholder="From" min="1900" max="2025"
+                       value="{{ filters.min_year_built }}" style="min-width:76px;">
+                <span>–</span>
+                <input type="number" name="max_year_built" placeholder="To"   min="1900" max="2025"
+                       value="{{ filters.max_year_built }}" style="min-width:76px;">
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label>Sort By</label>
+            <select name="sort_by">
+                <option value="discovered_at" {% if filters.sort_by == 'discovered_at' %}selected{% endif %}>Date Published</option>
+                <option value="year_built"    {% if filters.sort_by == 'year_built'    %}selected{% endif %}>Year Built</option>
+                <option value="asking_price"  {% if filters.sort_by == 'asking_price'  %}selected{% endif %}>Price</option>
+                <option value="num_units"     {% if filters.sort_by == 'num_units'     %}selected{% endif %}>Number of Units</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Order</label>
+            <select name="sort_dir">
+                <option value="desc" {% if filters.sort_dir == 'desc' %}selected{% endif %}>Newest → Oldest</option>
+                <option value="asc"  {% if filters.sort_dir == 'asc'  %}selected{% endif %}>Oldest → Newest</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn-apply">Apply</button>
+        <a href="/" class="btn-reset">✕ Reset</a>
     </form>
 
     <!-- Listings Table -->
@@ -259,12 +358,28 @@
                     <th style="width:30px;"></th>
                     <th>Listing</th>
                     <th>Region</th>
-                    <th style="text-align:right;">Price</th>
-                    <th style="text-align:center;">Units</th>
+                    <th class="sortable {% if filters.sort_by == 'asking_price' %}sort-active{% endif %}"
+                        style="text-align:right;"
+                        onclick="sortBy('asking_price')">
+                        Price<span class="sort-arrow">{% if filters.sort_by == 'asking_price' %}{{ '↑' if filters.sort_dir == 'asc' else '↓' }}{% else %}↕{% endif %}</span>
+                    </th>
+                    <th class="sortable {% if filters.sort_by == 'num_units' %}sort-active{% endif %}"
+                        style="text-align:center;"
+                        onclick="sortBy('num_units')">
+                        Units<span class="sort-arrow">{% if filters.sort_by == 'num_units' %}{{ '↑' if filters.sort_dir == 'asc' else '↓' }}{% else %}↕{% endif %}</span>
+                    </th>
                     <th style="text-align:center;">Cap Rate</th>
+                    <th class="sortable {% if filters.sort_by == 'year_built' %}sort-active{% endif %}"
+                        style="text-align:center;"
+                        onclick="sortBy('year_built')">
+                        Yr Built<span class="sort-arrow">{% if filters.sort_by == 'year_built' %}{{ '↑' if filters.sort_dir == 'asc' else '↓' }}{% else %}↕{% endif %}</span>
+                    </th>
                     <th style="text-align:center;">Score</th>
                     <th>Status</th>
-                    <th>Found</th>
+                    <th class="sortable {% if filters.sort_by == 'discovered_at' %}sort-active{% endif %}"
+                        onclick="sortBy('discovered_at')">
+                        Published<span class="sort-arrow">{% if filters.sort_by == 'discovered_at' %}{{ '↑' if filters.sort_dir == 'asc' else '↓' }}{% else %}↕{% endif %}</span>
+                    </th>
                     <th style="width:180px;">Actions</th>
                 </tr>
             </thead>
@@ -299,6 +414,7 @@
                     <td style="text-align:right;">{{ '${:,.0f}'.format(l.asking_price) if l.asking_price else '—' }}</td>
                     <td style="text-align:center;">{{ l.num_units if l.num_units else '—' }}</td>
                     <td style="text-align:center;">{{ '{:.1f}%'.format(l.listed_cap_rate) if l.listed_cap_rate else '—' }}</td>
+                    <td style="text-align:center;font-size:12px;color:var(--muted);">{{ l.year_built if l.year_built else '—' }}</td>
                     <td style="text-align:center;">
                         {% if l.tier1_score is not none %}
                         <div class="score-detail">
@@ -353,13 +469,14 @@
     </div>
 
     <!-- Pagination -->
+    {% set qs %}region={{ filters.region }}&status={{ filters.status }}&min_score={{ filters.min_score or '' }}&min_price={{ filters.min_price }}&max_price={{ filters.max_price }}&units_bracket={{ filters.units_bracket }}&min_year_built={{ filters.min_year_built }}&max_year_built={{ filters.max_year_built }}&sort_by={{ filters.sort_by }}&sort_dir={{ filters.sort_dir }}{% endset %}
     {% if listings|length >= per_page %}
     <div class="pagination">
         {% if page > 1 %}
-        <a href="?page={{ page - 1 }}&region={{ filters.region or '' }}&status={{ filters.status or '' }}">← Prev</a>
+        <a href="?page={{ page - 1 }}&{{ qs }}">← Prev</a>
         {% endif %}
         <a class="active">Page {{ page }}</a>
-        <a href="?page={{ page + 1 }}&region={{ filters.region or '' }}&status={{ filters.status or '' }}">Next →</a>
+        <a href="?page={{ page + 1 }}&{{ qs }}">Next →</a>
     </div>
     {% endif %}
 
